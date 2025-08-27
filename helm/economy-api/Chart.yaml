@@ -1,0 +1,18 @@
+apiVersion: v2
+name: economy-api
+description: A Helm chart for Economy API service
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - minecraft
+  - economy
+  - api
+home: https://github.com/your-username/your-repo
+sources:
+  - https://github.com/your-username/your-repo
+maintainers:
+  - name: Your Name
+    email: your-email@example.com
+
+

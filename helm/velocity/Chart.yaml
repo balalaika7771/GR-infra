@@ -1,0 +1,7 @@
+apiVersion: v2
+name: velocity
+version: 0.1.0
+appVersion: "3.3.0"
+description: Velocity proxy Deployment
+
+

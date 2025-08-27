@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "purpur-shard.fullname" . }}
+spec:
+  replicas: {{ .Values.replicas | default 1 }}
+  serviceName: {{ include "purpur-shard.fullname" . }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "purpur-shard.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "purpur-shard.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+
+    spec:
+      securityContext:
+        runAsNonRoot: false
+        fsGroup: 10001
+      initContainers:
+        - name: config-init
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - |
+              cp /config/paper-global.yml /data/config/paper-global.yml
+              cp /config/spigot.yml /data/spigot.yml
+              echo "velocity-support=true" >> /data/server.properties
+              echo "velocity-secret=minecraft-secret-key" >> /data/server.properties
+          volumeMounts:
+            - name: world
+              mountPath: /data
+            - name: config
+              mountPath: /config
+      containers:
+        - name: purpur
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "{{ .Values.jvm.opts }}"
+            - name: FORWARDING_SECRET
+              value: "minecraft-secret-key"
+            - name: EULA
+              value: "TRUE"
+            - name: TYPE
+              value: "PURPUR"
+            - name: VERSION
+              value: "{{ .Values.version }}"
+            - name: ONLINE_MODE
+              value: "{{ .Values.server.onlineMode | default false }}"
+            - name: VELOCITY_SECRET
+              value: "{{ .Values.server.velocity.secret }}"
+          ports:
+            - name: mc
+              containerPort: 25565
+              protocol: TCP
+            - name: health
+              containerPort: {{ .Values.health.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: world
+              mountPath: /data
+            - name: config
+              mountPath: /config
+
+          readinessProbe:
+            tcpSocket:
+              port: 25565
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 25565
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+      volumes:
+        - name: world
+          {{- if .Values.persistence.enabled }}
+          {{- if .Values.persistence.shared }}
+          persistentVolumeClaim:
+            claimName: {{ include "purpur-shard.fullname" . }}-shared-world
+          {{- else }}
+          persistentVolumeClaim:
+            claimName: {{ include "purpur-shard.fullname" . }}-world
+          {{- end }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: config
+          configMap:
+            name: {{ include "purpur-shard.fullname" . }}-config
+
+

@@ -1,0 +1,18 @@
+apiVersion: v2
+name: redis
+description: Redis cache for Minecraft infrastructure
+type: application
+version: 0.1.0
+appVersion: "7-alpine"
+keywords:
+  - redis
+  - cache
+  - minecraft
+home: https://redis.io/
+sources:
+  - https://github.com/redis/redis
+maintainers:
+  - name: Minecraft Team
+    email: team@minecraft.local
+
+

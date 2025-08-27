@@ -1,0 +1,58 @@
+image:
+  repository: itzg/minecraft-server
+  tag: java21
+  pullPolicy: IfNotPresent
+
+version: "1.20.1"
+
+replicas: 1
+
+service:
+  type: ClusterIP
+  port: 25565
+  headless: true
+
+jvm:
+  opts: "-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=75 -Dfile.encoding=UTF-8"
+
+resources:
+  requests:
+    cpu: "1"
+    memory: "2Gi"
+  limits:
+    cpu: "2"
+    memory: "4Gi"
+
+health:
+  port: 8080
+
+velocity:
+  forwardingSecret: "minecraft-secret-key"
+  allowedNamespaceLabel: "app.kubernetes.io/name=velocity"
+
+server:
+  onlineMode: false
+  velocity:
+    enabled: true
+    secret: "minecraft-secret-key"
+    forwardingMode: "modern"
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: ""
+  shared: true
+
+plugin:
+  enabled: false
+  name: "purpur-plugin-1.0.0.jar"
+  config:
+
+    economy:
+      url: "http://economy-api:8080"
+      timeout: 5000
+    redis:
+      host: "redis"
+      port: 6379
+      timeout: 5000
+

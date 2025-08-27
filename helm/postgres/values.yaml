@@ -1,0 +1,35 @@
+image:
+  repository: postgres
+  tag: "15"
+  pullPolicy: IfNotPresent
+
+replicas: 1
+
+service:
+  type: ClusterIP
+  port: 5432
+
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: ""
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+env:
+  POSTGRES_DB: minecraft
+  POSTGRES_USER: minecraft
+  POSTGRES_PASSWORD: minecraft123
+
+initScripts:
+  - |
+    CREATE DATABASE auth_bridge;
+    CREATE DATABASE economy_api;
+
+

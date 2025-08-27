@@ -1,0 +1,33 @@
+# Конфигурация Purpur Plugin
+# Демонстрационный плагин с NMS и интеграцией бэкенд сервисов
+
+# Настройки авторизации (отключено - используем Mojang UUID)
+# auth:
+#   url: "http://auth-bridge:8080"
+#   timeout: 5000
+
+# Настройки экономики
+economy:
+  url: "http://economy-api:8080"
+  timeout: 5000
+
+# Настройки Redis
+redis:
+  host: "redis"
+  port: 6379
+  timeout: 5000
+
+# Настройки health check сервера
+health:
+  port: 8080
+  enabled: true
+
+# Настройки NMS
+nms:
+  enabled: true
+  debug: false
+
+# Настройки логирования
+logging:
+  level: "INFO"
+  file: "logs/plugin.log"

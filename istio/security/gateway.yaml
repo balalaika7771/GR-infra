@@ -1,0 +1,108 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: minecraft-gateway
+  namespace: minecraft
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "minecraft.example.com"
+    - "*.minecraft.example.com"
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "minecraft.example.com"
+    - "*.minecraft.example.com"
+    tls:
+      mode: SIMPLE
+      credentialName: minecraft-tls-cert
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: economy-api-vs
+  namespace: minecraft
+spec:
+  hosts:
+  - "economy-api.minecraft.example.com"
+  gateways:
+  - minecraft-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/actuator/health"
+    - uri:
+        prefix: "/api/purchases/health"
+    route:
+    - destination:
+        host: economy-api
+        port:
+          number: 8080
+  - match:
+    - uri:
+        prefix: "/api/test"
+    - uri:
+        prefix: "/api/purchases/test"
+    route:
+    - destination:
+        host: economy-api
+        port:
+          number: 8080
+  - match:
+    - uri:
+        prefix: "/api/purchases"
+    route:
+    - destination:
+        host: economy-api
+        port:
+          number: 8080
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: auth-bridge-vs
+  namespace: minecraft
+spec:
+  hosts:
+  - "auth-bridge.minecraft.example.com"
+  gateways:
+  - minecraft-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/actuator/health"
+    - uri:
+        prefix: "/api/health"
+    route:
+    - destination:
+        host: auth-bridge
+        port:
+          number: 8080
+  - match:
+    - uri:
+        prefix: "/api/test"
+    - uri:
+        prefix: "/api/test-attestation"
+    route:
+    - destination:
+        host: auth-bridge
+        port:
+          number: 8080
+  - match:
+    - uri:
+        prefix: "/api/link"
+    - uri:
+        prefix: "/api/exchange"
+    route:
+    - destination:
+        host: auth-bridge
+        port:
+          number: 8080

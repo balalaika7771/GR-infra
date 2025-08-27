@@ -1,0 +1,18 @@
+apiVersion: v2
+name: postgres
+description: PostgreSQL database for Minecraft infrastructure
+type: application
+version: 0.1.0
+appVersion: "15"
+keywords:
+  - postgresql
+  - database
+  - minecraft
+home: https://www.postgresql.org/
+sources:
+  - https://github.com/postgres/postgres
+maintainers:
+  - name: Minecraft Team
+    email: team@minecraft.local
+
+

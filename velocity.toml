@@ -1,0 +1,10 @@
+bind = "0.0.0.0:25565"
+motd = "&aWelcome to Local Minecraft Network"
+show-max-players = 5000
+online-mode = false
+player-info-forwarding-mode = "modern"
+forwarding-secret-file = "/config/forwarding.secret"
+servers = {
+  lobby = "localhost:25566"
+}
+try = ["lobby"]
