@@ -1,12 +1,15 @@
 package com.example.economy.web;
 
 import com.example.economy.service.PurchaseService;
+import com.example.economy.repo.WalletRepository;
+import com.example.economy.model.Wallet;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -20,10 +23,12 @@ public class EconomyController {
     
     private final PurchaseService purchaseService;
     private final StringRedisTemplate redisTemplate;
+    private final WalletRepository walletRepo;
     
-    public EconomyController(PurchaseService purchaseService, StringRedisTemplate redisTemplate) {
+    public EconomyController(PurchaseService purchaseService, StringRedisTemplate redisTemplate, WalletRepository walletRepo) {
         this.purchaseService = purchaseService;
         this.redisTemplate = redisTemplate;
+        this.walletRepo = walletRepo;
     }
     
     @PostMapping("/ensure-wallet/{userId}")
@@ -32,14 +37,19 @@ public class EconomyController {
         try {
             UUID uuid = UUID.fromString(userId);
             
-            // Получаем баланс - если кошелек не существует, он будет создан автоматически
-            var balance = purchaseService.getWalletBalance(uuid);
+            // Создаем или получаем кошелек пользователя
+            Wallet wallet = walletRepo.findByUserId(uuid).orElseGet(() -> {
+                var w = new Wallet();
+                w.setUserId(uuid);
+                w.setBalance(BigDecimal.valueOf(100)); // Начальный баланс 100 монет
+                return walletRepo.save(w);
+            });
             
             // Кэшируем баланс в Redis на 5 минут
             String cacheKey = "balance:" + userId;
-            redisTemplate.opsForValue().set(cacheKey, String.valueOf(balance), 5, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(cacheKey, String.valueOf(wallet.getBalance()), 5, TimeUnit.MINUTES);
             
-            return ResponseEntity.ok("Wallet ensured with balance: " + balance + " (cached in Redis)");
+            return ResponseEntity.ok("Wallet ensured with balance: " + wallet.getBalance() + " (cached in Redis)");
             
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid UUID format");
