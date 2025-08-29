@@ -1,0 +1,6 @@
+apiVersion: v2
+name: registry
+description: Internal Docker registry for development
+type: application
+version: 0.1.0
+appVersion: "2"

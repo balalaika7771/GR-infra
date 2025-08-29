@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Скрипт загрузки плагина на локальный Minecraft сервер
-# Поддерживает Kubernetes (OrbStack) и автоматическую перезагрузку
+# Minecraft Plugin Deployment Script
+# Supports Kubernetes deployment with automatic plugin updates
+# Builds and deploys plugin to Purpur server
 
 set -e
 
@@ -12,21 +13,21 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Функции логирования
+# Функции логировани
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[$(date '+%H:%M:%S')]${NC} $1"
 }
 
 log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[✓]${NC} $1"
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[✗]${NC} $1"
 }
 
 log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[!]${NC} $1"
 }
 
 # Конфигурация
@@ -39,31 +40,31 @@ TARGET_DIR="target"
 
 # Проверка зависимостей
 check_dependencies() {
-    log_info "Проверяем зависимости..."
+    log_info "Checking dependencies..."
     
     if ! command -v kubectl &> /dev/null; then
-        log_error "kubectl не установлен"
+        log_error "kubectl is not installed"
         exit 1
     fi
     
     if ! command -v mvn &> /dev/null; then
-        log_error "Maven не установлен"
+        log_error "Maven is not installed"
         exit 1
     fi
     
     if ! command -v java &> /dev/null; then
-        log_error "Java не установлена"
+        log_error "Java is not installed"
         exit 1
     fi
     
     # Проверяем версию Java
     JAVA_VERSION=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2 | cut -d'.' -f1)
     if [ "$JAVA_VERSION" -lt "17" ]; then
-        log_error "Требуется Java 17 или выше, текущая версия: $JAVA_VERSION"
+        log_error "Java 17+ required, current version: $JAVA_VERSION"
         exit 1
     fi
     
-    log_success "Все зависимости проверены"
+    log_success "All dependencies verified"
 }
 
 # Проверка Kubernetes кластера

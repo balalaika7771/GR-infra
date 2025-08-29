@@ -3,7 +3,7 @@ image:
   tag: java21
   pullPolicy: IfNotPresent
 
-version: "1.20.1"
+version: "1.21.5"
 
 replicas: 1
 

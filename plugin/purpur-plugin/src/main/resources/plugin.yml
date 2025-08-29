@@ -1,7 +1,7 @@
 name: EconomyPlugin
 version: 1.0.0
 main: com.example.mcplugin.MainPlugin
-api-version: 1.20
+api-version: 1.21
 description: Упрощенный плагин экономики с Redis кэшированием
 
 commands:

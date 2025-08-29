@@ -1,283 +1,285 @@
-# Minecraft Infrastructure
+# Minecraft Infrastructure on Kubernetes
 
-Профессиональная инфраструктура для Minecraft сервера на базе Kubernetes с микросервисной архитектурой.
+A complete, production-ready Minecraft server infrastructure deployed on Kubernetes using modern best practices.
 
-## Архитектура
+## 🏗️ Architecture
 
-### Компоненты системы
+- **Velocity Proxy**: Minecraft proxy server with NodePort service for stable external access
+- **Purpur Server**: High-performance Minecraft server implementation
+- **PostgreSQL**: Persistent database for player data and economy
+- **Redis**: High-performance cache and session storage
+- **Economy API**: Microservice for in-game economy management
+- **Local Registry**: Docker registry for custom images
 
-- **Velocity Proxy** - Minecraft прокси-сервер для балансировки нагрузки
-- **Purpur Server** - Основной Minecraft сервер с плагинами
-- **PostgreSQL** - Основная база данных для экономики и пользователей
-- **Redis** - Кэш и очереди сообщений
-- **Economy API** - Микросервис для управления экономикой игроков
-- **Custom Plugin** - Плагин с NMS интеграцией и backend API
+## ✨ Features
 
-### Технологический стек
+- **No Port-Forward**: Uses NodePort service for automatic external access
+- **Automatic Recovery**: Kubernetes handles pod restarts and scaling
+- **Persistent Storage**: Data survives pod restarts and deployments
+- **Plugin Support**: Automatic plugin deployment and updates
+- **Economy System**: Built-in economy API with Redis caching
+- **Production Ready**: Follows Kubernetes best practices
 
-- **Kubernetes** - Оркестрация контейнеров
-- **Helm** - Управление пакетами Kubernetes
-- **Java 21** - Backend сервисы и Minecraft плагины
-- **Spring Boot** - Backend фреймворк
-- **PostgreSQL** - Реляционная база данных
-- **Redis** - In-memory хранилище
+## 🚀 Quick Start
 
-## Быстрый старт
+### Prerequisites
 
-### Предварительные требования
+- Kubernetes cluster (OrbStack, minikube, or cloud provider)
+- `kubectl` configured and connected to cluster
+- `helm` installed
+- Internet access for image downloads
 
-- Kubernetes кластер (OrbStack, minikube, kind)
-- kubectl настроен и подключен к кластеру
-- helm установлен
-- Java 21+ для разработки плагинов
-- Maven для сборки
+### Deployment
 
-### Развертывание
-
-1. **Клонирование репозитория**
-   ```bash
-   git clone <repository-url>
-   cd repo
-   ```
-
-2. **Развертывание инфраструктуры**
-   ```bash
-   ./deploy.sh
-   ```
-
-3. **Загрузка плагина**
-   ```bash
-   ./upload-plugin.sh
-   ```
-
-4. **Подключение к серверу**
-   - IP: 25565 (через port-forward или LoadBalancer)
-   - Версия клиента: 1.20.1
-
-### Очистка
-
-Для полной очистки всех развертываний:
 ```bash
+# Deploy entire infrastructure
+./deploy.sh
+
+# Clean up all deployments
 ./deploy.sh --cleanup
+
+# Show help
+./deploy.sh --help
 ```
 
-## Детальное описание
+### Connection
 
-### Helm Charts
+After deployment, connect to your Minecraft server at:
+```
+localhost:30000
+```
 
-#### PostgreSQL
-- Версия: 15.x
-- Пользователь: minecraft
-- База данных: minecraft, economy_api
-- Персистентное хранилище
+The port 30000 is fixed and won't change between deployments.
 
-#### Redis
-- Версия: 7.x
-- Кэш для экономики и очереди сообщений
-- Персистентное хранилище
+## 📁 Project Structure
 
-#### Velocity
-- Версия: 3.3.0-SNAPSHOT
-- Прокси для Minecraft 1.20.1
-- Автоматическое перенаправление игроков
-- Конфигурация через ConfigMap
+```
+repo/
+├── deploy.sh                 # Main deployment script
+├── upload-plugin.sh          # Plugin deployment script
+├── deploy-economy-api.sh     # Economy API deployment
+├── dev-economy-api.sh        # Development workflow
+├── helm/                     # Helm charts
+│   ├── velocity/            # Velocity proxy chart
+│   ├── purpur-shard/        # Purpur server chart
+│   ├── postgres/            # PostgreSQL chart
+│   ├── redis/               # Redis chart
+│   └── registry/            # Local Docker registry
+├── plugin/                   # Minecraft plugin source
+│   └── purpur-plugin/       # Economy plugin
+└── services/                 # Microservices
+    └── economy-api/          # Economy API service
+```
 
-#### Purpur Shard
-- Версия: 1.20.1
-- Основной Minecraft сервер
-- Интеграция с Velocity
-- Персистентное хранилище для мира
-- Автоматическая загрузка плагинов
+## 🛠️ Scripts Overview
 
-#### Economy API
-- Spring Boot 3.2.7
-- REST API для экономики
-- JPA + Liquibase для миграций
-- Redis интеграция
-- Swagger документация
+### Core Scripts
 
-### Плагин
+#### `deploy.sh` - Main Deployment Script
+**Purpose**: Deploys entire Minecraft infrastructure on Kubernetes
+**Features**:
+- Creates namespace and all components
+- Deploys PostgreSQL, Redis, Velocity, Purpur
+- Installs plugin and economy-api
+- Configures NodePort service for external access
+- Provides cleanup functionality
 
-#### Функциональность
-- Автоматическое создание кошельков для новых игроков
-- Команды: /balance, /transfer, /auth, /ping, /nms
-- NMS интеграция для продвинутых функций
-- Backend API интеграция
-
-#### Архитектура плагина
-- Bukkit API 1.20.1
-- NMS утилиты для низкоуровневых операций
-- HTTP клиент для backend API
-- Redis подписчик для событий
-- Асинхронная обработка
-
-### Сетевая архитектура
-
-#### Сервисы
-- **ClusterIP** для внутренних сервисов
-- **LoadBalancer** для внешнего доступа к Velocity
-- **Port-forwarding** для локальной разработки
-
-#### Порты
-- Velocity: 25565 (внешний)
-- Economy API: 8080 (внутренний)
-- PostgreSQL: 5432 (внутренний)
-- Redis: 6379 (внутренний)
-
-## Разработка
-
-### Локальная разработка
-
-1. **Запуск кластера**
-   ```bash
-   # OrbStack
-   orb start
-   
-   # minikube
-   minikube start
-   
-   # kind
-   kind create cluster
-   ```
-
-2. **Развертывание**
-   ```bash
-   ./deploy.sh
-   ```
-
-3. **Разработка плагина**
-   ```bash
-   cd plugin/purpur-plugin
-   mvn clean compile
-   mvn package
-   ```
-
-4. **Загрузка плагина**
-   ```bash
-   ./upload-plugin.sh
-   ```
-
-### Отладка
-
-#### Логи сервисов
+**Usage**:
 ```bash
-# Velocity
+./deploy.sh              # Deploy infrastructure
+./deploy.sh --cleanup    # Remove all deployments
+./deploy.sh --help       # Show help
+```
+
+#### `upload-plugin.sh` - Plugin Deployment Script
+**Purpose**: Builds and deploys Minecraft plugin to Purpur server
+**Features**:
+- Maven compilation and packaging
+- Automatic plugin upload to server pod
+- Pod restart for plugin activation
+- Plugin functionality verification
+
+**Usage**:
+```bash
+./upload-plugin.sh        # Build and deploy plugin
+```
+
+#### `deploy-economy-api.sh` - Production Deployment
+**Purpose**: Simple, reliable deployment for production use
+**Features**:
+- Maven compilation and Docker image building
+- Image push to local registry
+- Kubernetes deployment creation/update
+- Basic health check verification
+- Simple and reliable workflow
+
+**Usage**:
+```bash
+./deploy-economy-api.sh           # Deploy economy-api
+./deploy-economy-api.sh --force   # Force redeployment
+```
+
+**When to use**: Production deployments, CI/CD pipelines, simple updates
+
+#### `dev-economy-api.sh` - Development Workflow
+**Purpose**: Full development cycle with automation and monitoring
+**Features**:
+- Multiple operation modes (build, docker, deploy, watch, health, logs)
+- Automatic file watching and hot reload
+- Comprehensive health monitoring
+- Log monitoring and debugging
+- Development environment management
+
+**Usage**:
+```bash
+./dev-economy-api.sh --deploy     # Build and deploy
+./dev-economy-api.sh --watch      # Auto-reload on file changes
+./dev-economy-api.sh --health     # Check API health
+./dev-economy-api.sh --logs       # Monitor logs
+./dev-economy-api.sh --help       # Show all options
+```
+
+**When to use**: Active development, debugging, testing, continuous development workflow
+
+### **Script Selection Guide**
+
+| Use Case | Recommended Script | Why |
+|----------|-------------------|-----|
+| **Production deployment** | `deploy-economy-api.sh` | Simple, reliable, production-ready |
+| **CI/CD pipeline** | `deploy-economy-api.sh` | Minimal dependencies, predictable |
+| **Initial infrastructure** | `deploy.sh` (calls `deploy-economy-api.sh`) | Automated full deployment |
+| **Active development** | `dev-economy-api.sh --watch` | Auto-reload, comprehensive monitoring |
+| **Debugging issues** | `dev-economy-api.sh --logs` | Real-time log monitoring |
+| **Health checks** | `dev-economy-api.sh --health` | Detailed health information |
+| **Quick testing** | `dev-economy-api.sh --deploy` | Fast build and deploy cycle |
+
+### **Deployment Flow**
+
+```
+deploy.sh (Main Infrastructure)
+    ├── PostgreSQL, Redis, Velocity, Purpur
+    ├── Plugin installation (upload-plugin.sh)
+    └── Economy API (deploy-economy-api.sh) ← Production deployment
+```
+
+**Note**: `deploy.sh` uses `deploy-economy-api.sh` for production deployment, not `dev-economy-api.sh`
+
+### **Error Handling**
+
+- **If economy-api deployment fails**: `deploy.sh` shows warning but continues
+- **Manual recovery**: Run `./deploy-economy-api.sh` manually
+- **Development mode**: Use `./dev-economy-api.sh --deploy` for active development
+
+## 🔧 Components
+
+### Velocity Proxy
+- **Type**: NodePort Service
+- **Port**: 30000 (external), 25565 (internal)
+- **Features**: Player forwarding, modern protocol support
+- **Access**: `localhost:30000`
+
+### Purpur Server
+- **Type**: Internal ClusterIP
+- **Port**: 25565
+- **Features**: Plugin support, performance optimizations
+- **Storage**: Persistent volume for world data
+
+### Economy API
+- **Type**: Internal ClusterIP
+- **Port**: 8080
+- **Features**: Player wallet management, Redis caching
+- **Database**: PostgreSQL integration
+
+## 🎮 Plugin System
+
+The infrastructure includes a custom economy plugin that:
+- Creates player wallets on first join
+- Provides `/balance` command
+- Integrates with Economy API
+- Uses Redis for caching
+
+### Plugin Commands
+- `/balance` - Check your balance
+- Automatic wallet creation on join
+
+## 🗄️ Data Persistence
+
+- **World Data**: Stored in persistent volumes
+- **Player Data**: Stored in PostgreSQL
+- **Cache**: Redis for performance optimization
+- **Backups**: Kubernetes handles volume management
+
+## 🔄 Development Workflow
+
+### Update Plugin
+```bash
+./upload-plugin.sh
+```
+
+### Update Economy API
+```bash
+./dev-economy-api.sh --deploy
+```
+
+### View Logs
+```bash
+# Velocity logs
 kubectl logs -n minecraft -l app.kubernetes.io/name=velocity
 
-# Purpur
+# Purpur logs
 kubectl logs -n minecraft -l app.kubernetes.io/name=purpur-shard
 
-# Economy API
+# Economy API logs
 kubectl logs -n minecraft -l app.kubernetes.io/name=economy-api
 ```
 
-#### Подключение к базе данных
-```bash
-kubectl exec -n minecraft deployment/postgres -- psql -U minecraft -d economy_api
-```
-
-#### Port-forward для локального доступа
-```bash
-# Velocity
-kubectl port-forward -n minecraft svc/velocity 25565:25565
-
-# Economy API
-kubectl port-forward -n minecraft svc/economy-api 8080:8080
-```
-
-## Мониторинг и логирование
-
-### Health Checks
-- Spring Boot Actuator для Economy API
-- Kubernetes readiness/liveness probes
-- Автоматический restart при сбоях
-
-### Логирование
-- Структурированные логи в JSON формате
-- Централизованное логирование через kubectl
-- Ротация логов для экономии места
-
-## Безопасность
-
-### Аутентификация
-- Mojang UUID для игроков
-- Отключен online-mode для локальной разработки
-- Velocity forwarding secret для безопасности
-
-### Сетевая безопасность
-- Изолированные namespace
-- Внутренние сервисы недоступны извне
-- Только Velocity доступен внешне
-
-## Масштабирование
-
-### Горизонтальное масштабирование
-- Velocity: до 3 реплик для балансировки
-- Purpur: до 5 шардов для распределения игроков
-- Economy API: до 10 реплик для высокой нагрузки
-
-### Вертикальное масштабирование
-- Настройка ресурсов через values.yaml
-- Автоматическое масштабирование по CPU/Memory
-- HPA (Horizontal Pod Autoscaler) поддержка
-
-## Резервное копирование
-
-### База данных
-- Автоматические бэкапы PostgreSQL
-- Персистентные тома для данных
-- Возможность восстановления из снапшотов
-
-### Мир Minecraft
-- Персистентное хранение мира
-- Автоматическое сохранение каждые 5 минут
-- Возможность ручного сохранения через RCON
 
 ## Troubleshooting
 
-### Частые проблемы
+### Can't Connect to Server
+1. Check if pods are running: `kubectl get pods -n minecraft`
+2. Verify service status: `kubectl get svc -n minecraft`
+3. Check logs for errors: `kubectl logs -n minecraft -l app.kubernetes.io/name=velocity`
 
-#### Pod не запускается
-```bash
-kubectl describe pod <pod-name> -n minecraft
-kubectl logs <pod-name> -n minecraft
-```
+### Plugin Not Working
+1. Verify plugin installation: `./upload-plugin.sh`
+2. Check plugin logs in Purpur
+3. Ensure Economy API is running
 
-#### Проблемы с подключением
-```bash
-# Проверка сервисов
-kubectl get svc -n minecraft
+### Database Issues
+1. Check PostgreSQL pod status
+2. Verify database connectivity
+3. Check init scripts in Helm chart
 
-# Проверка endpoints
-kubectl get endpoints -n minecraft
-```
+## 🧹 Cleanup Notes
 
-#### Проблемы с плагином
-```bash
-# Пересборка и загрузка
-./upload-plugin.sh
+**Removed Files** (no longer needed):
+- `port-forward.log` - Port-forwarding logs (anti-pattern)
+- `velocity.toml` - Velocity config (now managed by Helm)
+- `forwarding.secret` - Secret file (now managed by Helm)
+- `.port-forward.pid` - Port-forward PID file (anti-pattern)
 
-# Проверка логов
-kubectl logs -n minecraft -l app.kubernetes.io/name=purpur-shard
-```
+**Why Removed**:
+- Port-forwarding is an anti-pattern for production
+- Configuration files are now managed by Helm charts
+- Secrets are handled by Kubernetes secrets
+- PID files are not needed with proper service architecture
 
-### Восстановление
+## 📚 Additional Resources
 
-#### Полная переустановка
-```bash
-./deploy.sh --cleanup
-./deploy.sh
-```
+- [Kubernetes Documentation](https://kubernetes.io/docs/)
+- [Helm Documentation](https://helm.sh/docs/)
+- [Velocity Documentation](https://docs.papermc.io/velocity/)
+- [Purpur Documentation](https://purpurmc.org/)
 
-#### Восстановление плагина
-```bash
-./upload-plugin.sh
-```
+## 🤝 Contributing
 
-## Лицензия
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test with `./deploy.sh --cleanup && ./deploy.sh`
+5. Submit a pull request
 
-Проект распространяется под лицензией MIT.
+## 📄 License
 
-## Поддержка
-
-Для получения поддержки создайте issue в репозитории или обратитесь к команде разработки.
+This project is licensed under the MIT License - see the LICENSE file for details.

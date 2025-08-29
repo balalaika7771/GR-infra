@@ -1,18 +1,12 @@
 image:
-  repository: spritsail/velocity
+  repository: endkind/velocity
   tag: "latest"
   pullPolicy: IfNotPresent
 
 service:
-  type: NodePort
+  type: NodePort  # Стабильный доступ для OrbStack
   port: 25565
-  nodePort: 30000  # Фиксированный порт на узле для стабильности
-  # Дополнительный сервис для внешнего доступа
-  external:
-    enabled: true
-    type: NodePort
-    port: 25565
-    nodePort: 30000
+  nodePort: 30000  # Фиксированный порт для стабильности
 
 resources:
   requests:
@@ -22,8 +16,6 @@ resources:
     cpu: "1"
     memory: "2Gi"
 
-# Прямой доступ к порту узла
-hostPort: 25565
 
 config:
   velocityToml: |
