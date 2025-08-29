@@ -4,8 +4,15 @@ image:
   pullPolicy: IfNotPresent
 
 service:
-  type: LoadBalancer
+  type: NodePort
   port: 25565
+  nodePort: 30000  # Фиксированный порт на узле для стабильности
+  # Дополнительный сервис для внешнего доступа
+  external:
+    enabled: true
+    type: NodePort
+    port: 25565
+    nodePort: 30000
 
 resources:
   requests:
@@ -14,6 +21,9 @@ resources:
   limits:
     cpu: "1"
     memory: "2Gi"
+
+# Прямой доступ к порту узла
+hostPort: 25565
 
 config:
   velocityToml: |

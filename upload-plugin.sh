@@ -114,8 +114,6 @@ build_plugin() {
 
 # Получение информации о поде Purpur
 get_purpur_pod() {
-    log_info "Получаем информацию о поде Purpur..."
-    
     local pod_name=$(kubectl get pods -n $NAMESPACE -l $PURPUR_LABEL -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
     
     if [ -z "$pod_name" ]; then
@@ -133,7 +131,7 @@ upload_plugin() {
     log_info "Загружаем плагин в под $pod_name..."
     
     # Копируем JAR файл в под
-    kubectl cp "$PLUGIN_DIR/$TARGET_DIR/$PLUGIN_JAR" "$NAMESPACE/$pod_name:/data/plugins/" 2>/dev/null || {
+    kubectl cp "$PLUGIN_DIR/$TARGET_DIR/$PLUGIN_JAR" "$NAMESPACE/$pod_name:/data/plugins/" || {
         log_error "Не удалось скопировать плагин в под"
         exit 1
     }

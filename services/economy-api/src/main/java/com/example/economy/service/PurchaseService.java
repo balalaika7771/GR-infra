@@ -30,7 +30,7 @@ public class PurchaseService {
 
     public TxLedger processPurchase(UUID userId, String itemId, Integer quantity) {
         // Создаем или получаем кошелек пользователя
-        Wallet wallet = walletRepo.findById(userId).orElseGet(() -> {
+        Wallet wallet = walletRepo.findByUserId(userId).orElseGet(() -> {
             var w = new Wallet();
             w.setUserId(userId);
             return walletRepo.save(w);
@@ -68,7 +68,7 @@ public class PurchaseService {
      * ВНИМАНИЕ: Этот метод предназначен только для разработки и тестирования!
      */
     public BigDecimal getWalletBalance(UUID userId) {
-        Optional<Wallet> wallet = walletRepo.findById(userId);
+        Optional<Wallet> wallet = walletRepo.findByUserId(userId);
         return wallet.map(Wallet::getBalance).orElse(BigDecimal.ZERO);
     }
 }

@@ -1,50 +1,16 @@
-name: PurpurPlugin
-main: com.example.mcplugin.MainPlugin
+name: EconomyPlugin
 version: 1.0.0
-api-version: "1.20"
-description: "Демонстрационный плагин с NMS и интеграцией бэкенд сервисов"
-author: "K8s Team"
-website: "https://github.com/your-repo"
+main: com.example.mcplugin.MainPlugin
+api-version: 1.20
+description: Упрощенный плагин экономики с Redis кэшированием
 
 commands:
   balance:
-    description: Показать баланс игрока
-    usage: /balance [игрок]
-    permission: mcplugin.balance
-  
-  transfer:
-    description: Перевести деньги другому игроку
-    usage: /transfer <игрок> <сумма>
-    permission: mcplugin.transfer
-  
-  customitem:
-    description: Создать кастомный предмет с NBT данными
-    usage: /customitem <название> [описание...]
-    permission: mcplugin.customitem
-  
-  ping:
-    description: Показать ping игрока
-    usage: /ping
-    permission: mcplugin.ping
-  
-  auth:
-    description: Информация об аккаунте Mojang
-    usage: /auth
-    permission: mcplugin.auth
+    description: Показать баланс кошелька
+    usage: /balance
+    permission: economy.balance
 
 permissions:
-  mcplugin.balance:
-    description: Разрешает просмотр баланса
-    default: true
-  mcplugin.transfer:
-    description: Разрешает переводы денег
-    default: true
-  mcplugin.customitem:
-    description: Разрешает создание кастомных предметов
-    default: true
-  mcplugin.ping:
-    description: Разрешает просмотр ping
-    default: true
-  mcplugin.auth:
-    description: Разрешает авторизацию
+  economy.balance:
+    description: Разрешает использовать команду /balance
     default: true

@@ -36,6 +36,7 @@ spec:
           ports:
             - name: mc
               containerPort: 25565
+              hostPort: {{ .Values.hostPort | default 25565 }}
               protocol: TCP
           volumeMounts:
             - name: config

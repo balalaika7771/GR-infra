@@ -30,7 +30,7 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.xml
     contexts: ${SPRING_PROFILES_ACTIVE:default}
   
-  # Убираем OAuth2 - безопасность управляется Istio
+  # Безопасность управляется Spring Security
 
 logging:
   level:

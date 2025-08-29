@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.util.logging.Logger;
 
 /**
- * Слушатель событий входа игроков для автоматического создания записей.
+ * Слушатель событий входа игроков для автоматического создания кошельков.
  */
 public class PlayerJoinListener implements Listener {
     
@@ -31,18 +31,15 @@ public class PlayerJoinListener implements Listener {
         
         logger.info("Игрок " + playerName + " (" + playerUuid + ") зашел на сервер");
         
-        // Асинхронно создаем запись для игрока
+        // Асинхронно создаем кошелек для игрока
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                // 1) Гарантируем инициализацию на бэке (создание кошелька при отсутствии)
+                // Создаем кошелек с 100 монетами, если его нет
                 backendClient.ensurePlayerInitialized(playerUuid);
-                
-                // Проверяем, есть ли уже кошелек у игрока
-                var balance = backendClient.getBalance(playerUuid);
-                logger.info("Игрок " + playerName + " имеет баланс: " + balance.balance());
+                logger.info("Кошелек для игрока " + playerName + " создан/проверен");
                 
             } catch (IOException e) {
-                logger.warning("Ошибка при получении баланса для игрока " + playerName + ": " + e.getMessage());
+                logger.warning("Ошибка при создании кошелька для игрока " + playerName + ": " + e.getMessage());
             }
         });
     }
