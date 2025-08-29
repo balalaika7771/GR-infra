@@ -1,31 +1,19 @@
 #!/bin/bash
 
-# ================================================================================
-#                    СКРИПТ РАЗВЕРТЫВАНИЯ MINECRAFT ПЛАГИНА
-# ================================================================================
-# 
-# Описание: Автоматическая сборка, упаковка и загрузка плагина экономики
-#          в Minecraft сервер Purpur через Kubernetes
-# 
-# Автор: AI Assistant
-# Версия: 2.0.0
-# ================================================================================
+# Minecraft Plugin Deployment Script
+# Supports Kubernetes deployment with automatic plugin updates
+# Builds and deploys plugin to Purpur server
 
 set -e
 
-# Цвета для красивого вывода
+# Цвета для вывода
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Конфигурация
-NAMESPACE="minecraft"
-REGISTRY="localhost:30500"
-PLUGIN_NAME="EconomyPlugin"
-
-# Функции логирования с красивым форматированием
+# Функции логировани
 log_info() {
     echo -e "${BLUE}[$(date '+%H:%M:%S')]${NC} $1"
 }
@@ -42,180 +30,199 @@ log_warning() {
     echo -e "${YELLOW}[!]${NC} $1"
 }
 
-# Показать справку
-show_help() {
-    echo "================================================================================"
-    echo "                    СКРИПТ РАЗВЕРТЫВАНИЯ MINECRAFT ПЛАГИНА"
-    echo "================================================================================"
-    echo ""
-    echo "ОПИСАНИЕ:"
-    echo "  Автоматическая сборка и загрузка плагина экономики в Minecraft сервер"
-    echo "  Включает Gradle сборку, Docker упаковку и Kubernetes развертывание"
-    echo ""
-    echo "ИСПОЛЬЗОВАНИЕ:"
-    echo "  $0 [опции]"
-    echo ""
-    echo "ОПЦИИ:"
-    echo "  --help, -h     Показать эту справку"
-    echo "  --force        Принудительная пересборка"
-    echo "  --clean        Очистка предыдущей сборки"
-    echo ""
-    echo "ТРЕБОВАНИЯ:"
-    echo "  - Gradle 8.5+ установлен"
-    echo "  - Docker запущен"
-    echo "  - Kubernetes кластер доступен"
-    echo "  - Purpur сервер запущен в namespace $NAMESPACE"
-    echo ""
-    echo "ПРОЦЕСС:"
-    echo "  1. Сборка JAR файла через Gradle"
-    echo "  2. Создание Docker образа"
-    echo "  3. Загрузка в локальный registry"
-    echo "  4. Копирование в pod Purpur"
-    echo "  5. Перезапуск сервера"
-    echo ""
-    echo "ПРИМЕРЫ:"
-    echo "  $0                    # Обычная сборка и загрузка"
-    echo "  $0 --force            # Принудительная пересборка"
-    echo "  $0 --clean            # Очистка и пересборка"
-    echo ""
-    echo "================================================================================"
-}
+# Конфигурация
+NAMESPACE="minecraft"
+PURPUR_LABEL="app.kubernetes.io/name=purpur-shard"
+PLUGIN_NAME="purpur-plugin"
+PLUGIN_JAR="purpur-plugin-1.0.0.jar"
+PLUGIN_DIR="plugin/purpur-plugin"
+TARGET_DIR="target"
 
 # Проверка зависимостей
 check_dependencies() {
-    log_info "Проверка зависимостей..."
+    log_info "Checking dependencies..."
     
+    if ! command -v kubectl &> /dev/null; then
+        log_error "kubectl is not installed"
+        exit 1
+    fi
+    
+    if ! command -v mvn &> /dev/null; then
+        log_error "Maven is not installed"
+        exit 1
+    fi
+    
+    if ! command -v java &> /dev/null; then
+        log_error "Java is not installed"
+        exit 1
+    fi
+    
+    # Проверяем версию Java
+    JAVA_VERSION=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2 | cut -d'.' -f1)
+    if [ "$JAVA_VERSION" -lt "17" ]; then
+        log_error "Java 17+ required, current version: $JAVA_VERSION"
+        exit 1
+    fi
+    
+    log_success "All dependencies verified"
+}
 
+# Проверка Kubernetes кластера
+check_kubernetes() {
+    log_info "Проверяем Kubernetes кластер..."
     
-    if ! command -v docker &> /dev/null; then
-        log_error "Docker не найден. Запустите Docker."
+    if ! kubectl cluster-info &> /dev/null; then
+        log_error "Kubernetes кластер недоступен"
         exit 1
     fi
     
     if ! kubectl get namespace $NAMESPACE &> /dev/null; then
-        log_error "Namespace $NAMESPACE не найден. Запустите deploy.sh сначала."
+        log_error "Namespace $NAMESPACE не найден. Сначала запустите deploy.sh"
         exit 1
     fi
     
-    log_success "Все зависимости проверены"
+    log_success "Kubernetes кластер доступен"
 }
 
 # Сборка плагина
 build_plugin() {
-    log_info "Начинаю сборку плагина..."
+    log_info "Собираем плагин..."
     
-    cd plugin/purpur-plugin
-    
-    if [[ "$*" == *"--clean"* ]]; then
-        log_info "Очистка предыдущей сборки..."
-        ./gradlew clean
+    if [ ! -d "$PLUGIN_DIR" ]; then
+        log_error "Директория плагина не найдена: $PLUGIN_DIR"
+        exit 1
     fi
+    
+    cd "$PLUGIN_DIR"
+    
+    log_info "Очистка предыдущей сборки..."
+    mvn clean
     
     log_info "Компиляция плагина..."
-    ./gradlew compileJava
+    mvn compile
     
     log_info "Сборка JAR файла..."
-    ./gradlew build -x test
+    mvn package -DskipTests
     
-    if [ ! -f "build/libs/EconomyPlugin.jar" ]; then
-        log_error "JAR файл не создан. Проверьте ошибки сборки."
+    if [ ! -f "$TARGET_DIR/$PLUGIN_JAR" ]; then
+        log_error "JAR файл не создан: $TARGET_DIR/$PLUGIN_JAR"
         exit 1
     fi
     
-    log_success "Плагин успешно собран"
-    cd ../..
+    log_success "Плагин собран: $TARGET_DIR/$PLUGIN_JAR"
+    cd - > /dev/null
 }
 
-# Создание Docker образа
-create_docker_image() {
-    log_info "Создание Docker образа..."
+# Получение информации о поде Purpur
+get_purpur_pod() {
+    local pod_name=$(kubectl get pods -n $NAMESPACE -l $PURPUR_LABEL -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
     
-    # Находим JAR файл
-    JAR_FILE="plugin/purpur-plugin/build/libs/EconomyPlugin.jar"
-    
-    if [ -z "$JAR_FILE" ]; then
-        log_error "JAR файл не найден. Сначала соберите плагин."
+    if [ -z "$pod_name" ]; then
+        log_error "Под Purpur не найден в namespace $NAMESPACE"
         exit 1
     fi
     
-    # Создаем временный Dockerfile
-    cat > /tmp/Dockerfile.plugin << EOF
-FROM openjdk:21-jdk-slim
-WORKDIR /plugins
-COPY $JAR_FILE /plugins/
-CMD ["echo", "Plugin image created"]
-EOF
-    
-    # Собираем образ
-    docker build -f /tmp/Dockerfile.plugin -t $REGISTRY/$PLUGIN_NAME:latest .
-    
-    # Очищаем временный файл
-    rm /tmp/Dockerfile.plugin
-    
-    log_success "Docker образ создан: $REGISTRY/$PLUGIN_NAME:latest"
+    echo "$pod_name"
 }
 
-# Загрузка в registry
-push_to_registry() {
-    log_info "Загрузка образа в registry..."
+# Загрузка плагина в под
+upload_plugin() {
+    local pod_name="$1"
     
-    docker push $REGISTRY/$PLUGIN_NAME:latest
+    log_info "Загружаем плагин в под $pod_name..."
     
-    log_success "Образ загружен в registry"
-}
-
-# Копирование в pod Purpur
-copy_to_purpur() {
-    log_info "Копирование плагина в pod Purpur..."
-    
-    # Находим pod Purpur
-    PURPUR_POD=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=purpur-shard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-    
-    if [ -z "$PURPUR_POD" ]; then
-        log_error "Pod Purpur не найден. Проверьте статус: kubectl get pods -n $NAMESPACE"
+    # Копируем JAR файл в под
+    kubectl cp "$PLUGIN_DIR/$TARGET_DIR/$PLUGIN_JAR" "$NAMESPACE/$pod_name:/data/plugins/" || {
+        log_error "Не удалось скопировать плагин в под"
         exit 1
+    }
+    
+    log_success "Плагин скопирован в под"
+}
+
+# Перезапуск пода
+restart_pod() {
+    local pod_name="$1"
+    
+    log_info "Перезапускаем под $pod_name..."
+    
+    # Удаляем старый под
+    kubectl delete pod "$pod_name" -n $NAMESPACE
+    
+    # Ждем запуска нового пода
+    log_info "Ожидаем запуска нового пода..."
+    kubectl wait --for=condition=ready pod -l $PURPUR_LABEL -n $NAMESPACE --timeout=300s
+    
+    log_success "Под перезапущен"
+}
+
+# Проверка работы плагина
+verify_plugin() {
+    log_info "Проверяем работу плагина..."
+    
+    # Ждем немного для загрузки плагина
+    sleep 10
+    
+    # Получаем новый под
+    local new_pod=$(get_purpur_pod)
+    
+    # Проверяем логи на наличие сообщения о загрузке плагина
+    local plugin_loaded=$(kubectl logs "$new_pod" -n $NAMESPACE --tail=50 | grep -i "plugin enabled successfully" || true)
+    
+    if [ -n "$plugin_loaded" ]; then
+        log_success "Плагин успешно загружен и работает!"
+    else
+        log_warning "Плагин может быть не загружен. Проверьте логи:"
+        echo "kubectl logs $new_pod -n $NAMESPACE"
+    fi
+}
+
+# Очистка временных файлов
+cleanup() {
+    log_info "Очистка..."
+    
+    # Удаляем временные файлы если есть
+    if [ -f "/tmp/plugin_upload.log" ]; then
+        rm -f "/tmp/plugin_upload.log"
     fi
     
-    log_info "Найден pod Purpur: $PURPUR_POD"
-    
-    # Создаем временный pod для копирования
-    kubectl run plugin-copy --image=$REGISTRY/$PLUGIN_NAME:latest --restart=Never -n $NAMESPACE
-    
-    # Ждем готовности
-    kubectl wait --for=condition=ready pod/plugin-copy -n $NAMESPACE --timeout=30s
-    
-    # Копируем файл
-    kubectl cp plugin-copy:/plugins/ $PURPUR_POD:/tmp/plugins -n $NAMESPACE
-    
-    # Перемещаем в папку plugins
-    kubectl exec -n $NAMESPACE $PURPUR_POD -- sh -c "cp /tmp/plugins/* /plugins/ && rm -rf /tmp/plugins"
-    
-    # Удаляем временный pod
-    kubectl delete pod plugin-copy -n $NAMESPACE --ignore-not-found=true
-    
-    log_success "Плагин скопирован в pod Purpur"
+    log_success "Очистка завершена"
 }
 
-# Перезапуск сервера
-restart_server() {
-    log_info "Перезапуск Minecraft сервера..."
-    
-    # Находим pod Purpur
-    PURPUR_POD=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=purpur-shard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-    
-    if [ -z "$PURPUR_POD" ]; then
-        log_error "Pod Purpur не найден"
-        exit 1
-    fi
-    
-    # Отправляем команду перезапуска
-    kubectl exec -n $NAMESPACE $PURPUR_POD -- sh -c "echo 'reload' > /tmp/console"
-    
-    log_success "Сервер перезапущен"
+# Показать справку
+show_help() {
+    echo "Minecraft Plugin Upload Tool"
+    echo ""
+    echo "Использование: $0 [опции]"
+    echo ""
+    echo "Опции:"
+    echo "  --help, -h     Показать эту справку"
+    echo "  --no-restart   Не перезапускать под после загрузки"
+    echo "  --verify       Только проверить статус плагина"
+    echo ""
+    echo "Примеры:"
+    echo "  $0              Собрать и загрузить плагин"
+    echo "  $0 --no-restart Загрузить плагин без перезапуска"
+    echo "  $0 --verify     Проверить статус плагина"
+    echo ""
+    echo "Требования:"
+    echo "  - Kubernetes кластер с запущенным Purpur"
+    echo "  - Maven для сборки плагина"
+    echo "  - Java 17+ для компиляции"
+    echo "  - kubectl настроен и подключен к кластеру"
+    echo ""
+    echo "Процесс:"
+    echo "1. Сборка плагина с помощью Maven"
+    echo "2. Копирование JAR в под Purpur"
+    echo "3. Перезапуск пода для загрузки плагина"
+    echo "4. Проверка успешной загрузки"
 }
 
 # Главная функция
 main() {
+    local no_restart=false
+    local verify_only=false
+    
     # Парсим аргументы
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -223,12 +230,12 @@ main() {
                 show_help
                 exit 0
                 ;;
-            --force)
-                FORCE_BUILD=true
+            --no-restart)
+                no_restart=true
                 shift
                 ;;
-            --clean)
-                CLEAN_BUILD=true
+            --verify)
+                verify_only=true
                 shift
                 ;;
             *)
@@ -239,54 +246,56 @@ main() {
         esac
     done
     
-    echo ""
-    echo "================================================================================"
-    echo "                    РАЗВЕРТЫВАНИЕ MINECRAFT ПЛАГИНА"
-    echo "================================================================================"
-    echo ""
+    if [ "$verify_only" = true ]; then
+        check_kubernetes
+        local pod_name=$(get_purpur_pod)
+        verify_plugin
+        exit 0
+    fi
+    
+    log_info "Начинаем загрузку плагина..."
     
     # Проверяем зависимости
     check_dependencies
     
+    # Проверяем Kubernetes
+    check_kubernetes
+    
     # Собираем плагин
-    build_plugin "$@"
+    build_plugin
     
-    # Создаем Docker образ
-    create_docker_image
+    # Получаем информацию о поде
+    local pod_name=$(get_purpur_pod)
     
-    # Загружаем в registry
-    push_to_registry
+    # Загружаем плагин
+    upload_plugin "$pod_name"
     
-    # Копируем в pod Purpur
-    copy_to_purpur
+    # Перезапускаем под если нужно
+    if [ "$no_restart" = false ]; then
+        restart_pod "$pod_name"
+    fi
     
-    # Перезапускаем сервер
-    restart_server
+    # Проверяем работу плагина
+    verify_plugin
+    
+    # Очистка
+    cleanup
+    
+    log_success "Плагин успешно загружен!"
     
     echo ""
-    echo "================================================================================"
-    echo "                    ПЛАГИН УСПЕШНО РАЗВЕРНУТ!"
-    echo "================================================================================"
+    echo "Следующие шаги:"
+    echo "1. Подключитесь к серверу Minecraft"
+    echo "2. Используйте команды плагина: /balance, /transfer"
+    echo "3. Проверьте логи: kubectl logs -n $NAMESPACE -l $PURPUR_LABEL"
     echo ""
-    echo "  СТАТУС: Плагин загружен и активирован"
-    echo "  СЕРВЕР: Перезапущен и готов к работе"
-    echo "  ПЛАГИН: EconomyPlugin с экономической системой"
-    echo ""
-    echo "  СЛЕДУЮЩИЕ ШАГИ:"
-    echo "    1. Подключитесь к серверу"
-    echo "    2. Используйте команду /balance для проверки"
-    echo "    3. Кошелек создается автоматически при входе"
-    echo ""
-    echo "  ПОЛЕЗНЫЕ КОМАНДЫ:"
-    echo "    kubectl logs -n $NAMESPACE -l app.kubernetes.io/name=purpur-shard"
-    echo "    kubectl get pods -n $NAMESPACE"
-    echo "================================================================================"
-    echo ""
-    
-    log_success "Развертывание плагина завершено успешно!"
+    echo "Доступные команды плагина:"
+    echo "  /balance - показать баланс"
+    echo "  /transfer <игрок> <сумма> - перевести деньги"
+    echo "  /auth - информация об аккаунте"
+    echo "  /ping - показать ping"
+    echo "  /nms - тест NMS функций"
 }
 
 # Запуск скрипта
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
-fi
+main "$@"
