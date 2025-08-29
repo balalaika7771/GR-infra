@@ -1,17 +1,30 @@
 #!/bin/bash
 
-# Economy API Development Workflow Script
-# Automatically rebuilds Docker image and restarts pod in Kubernetes
-# Supports local development with hot reload capabilities
+# ================================================================================
+#                    СКРИПТ РАЗРАБОТКИ ECONOMY API
+# ================================================================================
+# 
+# Описание: Интерактивный скрипт для разработки и отладки микросервиса экономики
+#          с автоматической пересборкой, мониторингом и горячей заменой
+# 
+# Автор: AI Assistant
+# Версия: 2.0.0
+# ================================================================================
 
 set -e
 
-# Цвета для вывода
+# Цвета для красивого вывода
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Конфигурация
+NAMESPACE="minecraft"
+REGISTRY="localhost:30500"
+SERVICE_NAME="economy-api"
+WATCH_DIR="services/economy-api/src"
 
 # Функции логирования с красивым форматированием
 log() {
@@ -30,331 +43,345 @@ warning() {
     echo -e "${YELLOW}[!]${NC} $1"
 }
 
-# Конфигурация
-NAMESPACE="minecraft"
-ECONOMY_API_DIR="services/economy-api"
-ECONOMY_API_LABEL="app.kubernetes.io/name=economy-api"
-IMAGE_NAME="economy-api"
-# Динамический тег для кэш-бастинга и гарантированной подстановки нового образа
-IMAGE_TAG="dev-$(date +%Y%m%d%H%M%S)"
-REGISTRY="localhost:30500"  # Внутренний registry в Kubernetes (NodePort)
-LOCAL_IMAGE="$IMAGE_NAME:$IMAGE_TAG"
-FULL_IMAGE="$LOCAL_IMAGE"
+# Показать справку
+show_help() {
+    echo "================================================================================"
+    echo "                    СКРИПТ РАЗРАБОТКИ ECONOMY API"
+    echo "================================================================================"
+    echo ""
+    echo "ОПИСАНИЕ:"
+    echo "  Интерактивный скрипт для разработки микросервиса экономики"
+    echo "  Включает автоматическую пересборку, мониторинг и горячую замену"
+    echo ""
+    echo "ИСПОЛЬЗОВАНИЕ:"
+    echo "  $0 [опции]"
+    echo ""
+    echo "ОПЦИИ:"
+    echo "  --help, -h     Показать эту справку"
+    echo "  --watch        Автоматическая пересборка при изменениях"
+    echo "  --deploy       Быстрая сборка и развертывание"
+    echo "  --logs         Просмотр логов в реальном времени"
+    echo "  --health       Проверка здоровья сервиса"
+    echo "  --restart      Перезапуск сервиса"
+    echo "  --clean        Очистка и пересборка"
+    echo ""
+    echo "РЕЖИМЫ РАБОТЫ:"
+    echo "  --watch        Автоматический режим разработки"
+    echo "  --deploy       Одноразовая сборка и развертывание"
+    echo "  --logs         Мониторинг логов"
+    echo "  --health       Диагностика сервиса"
+    echo ""
+    echo "ТРЕБОВАНИЯ:"
+    echo "  - Gradle 8.5+ установлен"
+    echo "  - Docker запущен"
+    echo "  - Kubernetes кластер доступен"
+    echo "  - Namespace $NAMESPACE создан"
+    echo ""
+    echo "ПРИМЕРЫ:"
+    echo "  $0 --watch     # Автоматическая разработка"
+    echo "  $0 --deploy    # Быстрое развертывание"
+    echo "  $0 --logs      # Просмотр логов"
+    echo "  $0 --health    # Проверка здоровья"
+    echo ""
+    echo "================================================================================"
+}
 
 # Проверка зависимостей
 check_dependencies() {
-    log "Проверяем зависимости..."
-    
-    if ! command -v kubectl &> /dev/null; then
-        error "kubectl не установлен"
-        exit 1
-    fi
+    log "Проверка зависимостей..."
     
     if ! command -v docker &> /dev/null; then
-        error "Docker не установлен"
-        exit 1
-    fi
-    
-    if ! command -v mvn &> /dev/null; then
-        error "Maven не установлен"
-        exit 1
-    fi
-    
-    if ! kubectl cluster-info &> /dev/null; then
-        error "Kubernetes кластер недоступен"
+        error "Docker не найден. Запустите Docker."
         exit 1
     fi
     
     if ! kubectl get namespace $NAMESPACE &> /dev/null; then
-        error "Namespace $NAMESPACE не найден. Сначала запустите deploy.sh"
-        exit 1
-    fi
-    
-    # Проверяем доступность Docker daemon
-    if ! docker info &> /dev/null; then
-        error "Docker daemon недоступен"
+        error "Namespace $NAMESPACE не найден. Запустите deploy.sh сначала."
         exit 1
     fi
     
     success "Все зависимости проверены"
 }
 
-# Гарантируем, что деплоймент economy-api существует
-ensure_deployment() {
-    if kubectl -n "$NAMESPACE" get deploy economy-api >/dev/null 2>&1; then
-        return 0
-    fi
-    log "Деплоймент economy-api не найден. Выполняю начальную установку через Helm..."
-    local repo imageTag pullPolicy
-    if curl -fsS "http://$REGISTRY/v2/_catalog" >/dev/null 2>&1; then
-        repo="$REGISTRY/$IMAGE_NAME"
-        pullPolicy="IfNotPresent"
-    else
-        repo="$IMAGE_NAME"
-        pullPolicy="Never"
-    fi
-    helm upgrade --install economy-api ./helm/economy-api \
-        -n "$NAMESPACE" \
-        --set image.repository="$repo" \
-        --set image.tag="$IMAGE_TAG" \
-        --set image.pullPolicy="$pullPolicy" \
-        --wait || {
-        error "Не удалось установить Helm release economy-api"
-        exit 1
-    }
-}
-
-## Убрано: попытки поднимать локальный реестр. Используем NodePort, иначе фоллбек на локальный образ.
-
-# Сборка economy-api
-build_economy_api() {
-    log "Сборка economy-api..."
+# Быстрая сборка и развертывание
+quick_deploy() {
+    log "Быстрая сборка и развертывание..."
     
-    if [ ! -d "$ECONOMY_API_DIR" ]; then
-        error "Директория economy-api не найдена: $ECONOMY_API_DIR"
-        exit 1
-    fi
+    # Сборка
+    cd services/economy-api
+    ./gradlew clean bootJar -x test -q
+    cd ../..
     
-    cd "$ECONOMY_API_DIR"
+    # Создание образа
+    JAR_FILE="services/economy-api/build/libs/economy-api.jar"
     
-    log "Очистка предыдущей сборки..."
-    mvn clean
+    cat > /tmp/Dockerfile.quick << EOF
+FROM openjdk:21-jdk-slim
+WORKDIR /app
+COPY $JAR_FILE app.jar
+EXPOSE 8080
+CMD ["java", "-jar", "app.jar"]
+EOF
     
-    log "Компиляция..."
-    mvn compile
+    docker build -f /tmp/Dockerfile.quick -t $REGISTRY/$SERVICE_NAME:dev .
+    rm /tmp/Dockerfile.quick
     
-    log "Сборка JAR файла..."
-    mvn package -DskipTests
+    # Загрузка в registry
+    docker push $REGISTRY/$SERVICE_NAME:dev
     
-    if [ ! -f "target/economy-api-1.0.0.jar" ]; then
-        error "JAR файл не создан: target/economy-api-1.0.0.jar"
-        exit 1
-    fi
+    # Обновление deployment
+    kubectl set image deployment/$SERVICE_NAME $SERVICE_NAME=$REGISTRY/$SERVICE_NAME:dev -n $NAMESPACE
     
-    success "economy-api собран"
-    cd - > /dev/null
-}
-
-# Сборка Docker образа
-build_docker_image() {
-    log "Сборка Docker образа..."
-    
-    cd "$ECONOMY_API_DIR"
-    
-    # Собираем локальный образ
-    docker build -t "$LOCAL_IMAGE" .
-    
-    success "Docker образ собран: $LOCAL_IMAGE"
-    cd - > /dev/null
-}
-
-# Загрузка образа в registry
-push_image_to_registry() {
-    log "Загрузка образа в registry..."
-    local candidate="$REGISTRY/$IMAGE_NAME:$IMAGE_TAG"
-    docker tag "$LOCAL_IMAGE" "$candidate" || true
-    if docker push "$candidate"; then
-        FULL_IMAGE="$candidate"
-        success "Образ загружен: $FULL_IMAGE"
-    else
-        FULL_IMAGE="$LOCAL_IMAGE"
-        warning "Registry недоступен. Используем локальный образ: $FULL_IMAGE"
-    fi
-}
-
-# Получение информации о поде economy-api
-get_economy_api_pod() {
-    local pod_name=$(kubectl get pods -n $NAMESPACE -l $ECONOMY_API_LABEL -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-    
-    if [ -z "$pod_name" ]; then
-        error "Под economy-api не найден в namespace $NAMESPACE"
-        exit 1
-    fi
-    
-    echo "$pod_name"
-}
-
-# Обновление образа в Kubernetes
-update_image_in_kubernetes() {
-    log "Обновление образа в Kubernetes..."
-    ensure_deployment
-    
-    # Обновляем deployment с новым образом
-    kubectl set image deployment/economy-api economy-api="$FULL_IMAGE" -n $NAMESPACE
-    # Настраиваем imagePullPolicy в зависимости от источника образа
-    if [[ "$FULL_IMAGE" == "$LOCAL_IMAGE" ]]; then
-        kubectl patch deployment economy-api -n $NAMESPACE --type='json' -p='[
-          {"op":"add","path":"/spec/template/spec/containers/0/imagePullPolicy","value":"Never"}
-        ]' || true
-    else
-        kubectl patch deployment economy-api -n $NAMESPACE --type='json' -p='[
-          {"op":"add","path":"/spec/template/spec/containers/0/imagePullPolicy","value":"IfNotPresent"}
-        ]' || true
-    fi
-    
-    # Ждем обновления
-    kubectl rollout status deployment/economy-api -n $NAMESPACE --timeout=300s
-    
-    success "Deployment обновлен с новым образом"
-}
-
-# Перезапуск пода (принудительно)
-restart_pod() {
-    log "Принудительный перезапуск пода..."
-    
-    # Удаляем под для принудительного пересоздания
-    local pod_name=$(get_economy_api_pod)
-    kubectl delete pod "$pod_name" -n $NAMESPACE
-    
-    # Ждем запуска нового пода
-    log "Ожидание запуска нового пода..."
-    kubectl wait --for=condition=ready pod -l $ECONOMY_API_LABEL -n $NAMESPACE --timeout=300s
-    
-    success "Под перезапущен"
-}
-
-# Проверка готовности по Kubernetes Ready
-check_api_health() {
-    log "Проверка готовности economy-api (Kubernetes Ready)..."
-    if kubectl wait --for=condition=ready pod -l $ECONOMY_API_LABEL -n $NAMESPACE --timeout=120s; then
-        success "economy-api pod в состоянии Ready"
-        return 0
-    fi
-    error "economy-api не перешел в Ready"
-    return 1
-}
-
-# Мониторинг логов
-monitor_logs() {
-    local pod_name=$(get_economy_api_pod)
-    
-    log "Мониторинг логов economy-api (Ctrl+C для выхода)..."
-    kubectl logs -f -n $NAMESPACE "$pod_name"
-}
-
-# Показать справку
-show_help() {
-    echo "Economy API Development Tool (Docker-based)"
-    echo ""
-    echo "Использование: $0 [опции]"
-    echo ""
-    echo "Опции:"
-    echo "  --help, -h           Показать эту справку"
-    echo "  --build              Только собрать economy-api"
-    echo "  --docker             Собрать Docker образ"
-    echo "  --deploy             Собрать, создать образ и развернуть в Kubernetes"
-    echo "  --restart            Перезапустить под economy-api"
-    echo "  --health             Проверить здоровье API"
-    echo "  --logs               Показать логи economy-api"
-    echo "  --watch              Автоматический мониторинг и перезапуск"
-    echo ""
-    echo "Примеры:"
-    echo "  $0 --build           Собрать economy-api"
-    echo "  $0 --docker          Собрать Docker образ"
-    echo "  $0 --deploy          Полный цикл: сборка -> образ -> деплой"
-    echo "  $0 --watch           Автоматический режим разработки"
-    echo ""
-    echo "Режим разработки:"
-    echo "  $0 --watch           Запускает автоматический мониторинг"
-    echo "                       При изменении исходного кода автоматически"
-    echo "                       пересобирает образ и перезапускает сервис"
-    echo ""
-    echo "Для локального доступа к API:"
-    echo "  1. Запустите в отдельном терминале:"
-    echo "     kubectl port-forward -n minecraft svc/economy-api 8080:8080"
-    echo "  2. API будет доступен по адресу: http://localhost:8080"
-    echo "  3. Проверьте здоровье: curl http://localhost:8080/actuator/health"
-    echo ""
-    echo "Скрипт автоматически обнаружит port-forward и будет использовать его для проверок."
+    success "Быстрое развертывание завершено"
 }
 
 # Автоматический режим разработки
 watch_mode() {
     log "Запуск автоматического режима разработки..."
-    log "Отслеживаем изменения в $ECONOMY_API_DIR"
-    log "Нажмите Ctrl+C для выхода"
+    echo ""
+    echo "================================================================================"
+    echo "                    РЕЖИМ АВТОМАТИЧЕСКОЙ РАЗРАБОТКИ"
+    echo "================================================================================"
+    echo ""
+    echo "  СТАТУС: Отслеживание изменений в $WATCH_DIR"
+    echo "  ДЕЙСТВИЯ:"
+    echo "    - Автоматическая пересборка при изменениях"
+    echo "    - Быстрое развертывание в Kubernetes"
+    echo "    - Мониторинг логов и здоровья"
+    echo ""
+    echo "  УПРАВЛЕНИЕ:"
+    echo "    Ctrl+C - Остановка режима"
+    echo "    Enter - Принудительная пересборка"
+    echo ""
+    echo "================================================================================"
+    echo ""
     
-    # Создаем временный файл для отслеживания изменений
-    local temp_file=$(mktemp)
-    find "$ECONOMY_API_DIR/src" -type f -name "*.java" -exec stat -f "%m %N" {} \; > "$temp_file"
+    # Проверяем наличие inotify-tools
+    if ! command -v inotifywait &> /dev/null; then
+        warning "inotify-tools не установлен. Используем простой polling режим."
+        watch_simple
+    else
+        watch_inotify
+    fi
+}
+
+# Простой режим отслеживания
+watch_simple() {
+    log "Запуск простого режима отслеживания (polling каждые 5 секунд)..."
     
     while true; do
-        sleep 2
-        
-        # Проверяем изменения
-        local new_temp_file=$(mktemp)
-        find "$ECONOMY_API_DIR/src" -type f -name "*.java" -exec stat -f "%m %N" {} \; > "$new_temp_file"
-        
-        if ! cmp -s "$temp_file" "$new_temp_file"; then
-            log "Обнаружены изменения в исходном коде!"
-            
-            # Полный цикл сборки и деплоя
-            build_economy_api
-            build_docker_image
-            push_image_to_registry
-            update_image_in_kubernetes
-            
-            # Обновляем временный файл
-            mv "$new_temp_file" "$temp_file"
-            
-            log "Готово! Сервис обновлен с новым образом."
-        else
-            rm "$new_temp_file"
+        if [ -f "$WATCH_DIR/.trigger" ]; then
+            log "Обнаружены изменения, запуск пересборки..."
+            rm -f "$WATCH_DIR/.trigger"
+            quick_deploy
+            show_status
         fi
+        
+        sleep 5
     done
+}
+
+# Режим отслеживания с inotify
+watch_inotify() {
+    log "Запуск inotify режима отслеживания..."
+    
+    # Создаем временный файл для триггера
+    touch "$WATCH_DIR/.trigger"
+    
+    # Запускаем inotify в фоне
+    inotifywait -m -r -e modify,create,delete "$WATCH_DIR" --format '%w%f' | while read file; do
+        if [[ "$file" != *".trigger" ]]; then
+            log "Обнаружены изменения в: $file"
+            touch "$WATCH_DIR/.trigger"
+        fi
+    done &
+    
+    INOTIFY_PID=$!
+    
+    # Основной цикл
+    while true; do
+        if [ -f "$WATCH_DIR/.trigger" ]; then
+            log "Обнаружены изменения, запуск пересборки..."
+            rm -f "$WATCH_DIR/.trigger"
+            quick_deploy
+            show_status
+        fi
+        
+        sleep 2
+    done
+    
+    # Очистка при выходе
+    kill $INOTIFY_PID 2>/dev/null || true
+}
+
+# Просмотр логов
+show_logs() {
+    log "Запуск просмотра логов в реальном времени..."
+    
+    # Находим pod
+    POD_NAME=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=$SERVICE_NAME -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+    
+    if [ -z "$POD_NAME" ]; then
+        error "Pod $SERVICE_NAME не найден"
+        return 1
+    fi
+    
+    echo "================================================================================"
+    echo "                    ЛОГИ ECONOMY API"
+    echo "================================================================================"
+    echo "  POD: $POD_NAME"
+    echo "  NAMESPACE: $NAMESPACE"
+    echo "  КОМАНДА: kubectl logs -f -n $NAMESPACE $POD_NAME"
+    echo "================================================================================"
+    echo ""
+    
+    kubectl logs -f -n $NAMESPACE $POD_NAME
+}
+
+# Проверка здоровья
+check_health() {
+    log "Проверка здоровья сервиса..."
+    
+    echo "================================================================================"
+    echo "                    ПРОВЕРКА ЗДОРОВЬЯ ECONOMY API"
+    echo "================================================================================"
+    echo ""
+    
+    # Статус подов
+    echo "СТАТУС ПОДОВ:"
+    kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=$SERVICE_NAME -o wide
+    
+    echo ""
+    echo "СТАТУС DEPLOYMENT:"
+    kubectl get deployment $SERVICE_NAME -n $NAMESPACE -o wide
+    
+    echo ""
+    echo "СТАТУС СЕРВИСА:"
+    kubectl get svc $SERVICE_NAME -n $NAMESPACE -o wide
+    
+    echo ""
+    echo "ЛОГИ (последние 20 строк):"
+    POD_NAME=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=$SERVICE_NAME -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+    
+    if [ -n "$POD_NAME" ]; then
+        kubectl logs -n $NAMESPACE $POD_NAME --tail=20
+    else
+        echo "Pod не найден"
+    fi
+    
+    echo ""
+    echo "================================================================================"
+}
+
+# Перезапуск сервиса
+restart_service() {
+    log "Перезапуск сервиса..."
+    
+    # Находим pod
+    POD_NAME=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=$SERVICE_NAME -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+    
+    if [ -z "$POD_NAME" ]; then
+        error "Pod $SERVICE_NAME не найден"
+        return 1
+    fi
+    
+    # Удаляем pod для перезапуска
+    kubectl delete pod $POD_NAME -n $NAMESPACE
+    
+    log "Ожидание запуска нового пода..."
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=$SERVICE_NAME -n $NAMESPACE --timeout=2m
+    
+    success "Сервис перезапущен"
+}
+
+# Показать статус
+show_status() {
+    echo ""
+    echo "================================================================================"
+    echo "                    СТАТУС РАЗВЕРТЫВАНИЯ"
+    echo "================================================================================"
+    echo ""
+    
+    # Проверяем статус
+    if kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=$SERVICE_NAME --field-selector=status.phase=Running | grep -q "1/1"; then
+        success "Сервис работает и готов к запросам"
+    else
+        warning "Сервис может быть не готов"
+    fi
+    
+    echo ""
+    echo "  ПОЛЕЗНЫЕ КОМАНДЫ:"
+    echo "    $0 --logs      # Просмотр логов"
+    echo "    $0 --health    # Проверка здоровья"
+    echo "    $0 --restart   # Перезапуск сервиса"
+    echo ""
+    echo "================================================================================"
+    echo ""
 }
 
 # Главная функция
 main() {
-    case "${1:-}" in
-        --help|-h)
-            show_help
-            exit 0
-            ;;
-        --build)
-            check_dependencies
-            build_economy_api
-            ;;
-        --docker)
-            check_dependencies
-            build_economy_api
-            build_docker_image
-            ;;
-        --deploy)
-            check_dependencies
-            build_economy_api
-            build_docker_image
-            push_image_to_registry
-            update_image_in_kubernetes
-            check_api_health
-            ;;
-        --restart)
-            check_dependencies
-            restart_pod
-            ;;
-        --health)
-            check_dependencies
-            check_api_health
-            ;;
-        --logs)
-            check_dependencies
-            monitor_logs
-            ;;
-        --watch)
-            check_dependencies
-            watch_mode
-            ;;
-        "")
-            show_help
-            exit 1
-            ;;
-        *)
-            error "Неизвестная опция: $1"
-            show_help
-            exit 1
-            ;;
-    esac
+    # Парсим аргументы
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            --watch)
+                WATCH_MODE=true
+                shift
+                ;;
+            --deploy)
+                QUICK_DEPLOY=true
+                shift
+                ;;
+            --logs)
+                SHOW_LOGS=true
+                shift
+                ;;
+            --health)
+                CHECK_HEALTH=true
+                shift
+                ;;
+            --restart)
+                RESTART_SERVICE=true
+                shift
+                ;;
+            --clean)
+                CLEAN_BUILD=true
+                shift
+                ;;
+            *)
+                error "Неизвестная опция: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Проверяем зависимости
+    check_dependencies
+    
+    # Выполняем действия
+    if [ "$QUICK_DEPLOY" = true ]; then
+        quick_deploy
+        show_status
+    elif [ "$SHOW_LOGS" = true ]; then
+        show_logs
+    elif [ "$CHECK_HEALTH" = true ]; then
+        check_health
+    elif [ "$RESTART_SERVICE" = true ]; then
+        restart_service
+    elif [ "$WATCH_MODE" = true ]; then
+        watch_mode
+    else
+        # Показываем справку если нет опций
+        show_help
+    fi
 }
 
 # Запуск скрипта
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

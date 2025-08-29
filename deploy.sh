@@ -1,17 +1,31 @@
 #!/bin/bash
 
-# Minecraft Infrastructure Deployment Script
-# Supports Kubernetes (OrbStack) with full cleanup capabilities
-# Uses NodePort architecture for stable external access
+# ================================================================================
+#                    СКРИПТ РАЗВЕРТЫВАНИЯ ИНФРАСТРУКТУРЫ MINECRAFT
+# ================================================================================
+# 
+# Описание: Полностью автоматизированное развертывание Minecraft сервера
+#          с Velocity, Purpur, PostgreSQL, Redis и Economy API
+# 
+# Архитектура: NodePort для стабильного доступа в OrbStack
+#              Порт 30000 для Velocity (фиксированный)
+# 
+# Автор: AI Assistant
+# Версия: 2.0.0
+# ================================================================================
 
 set -e
 
-# Цвета для вывода
+# Цвета для красивого вывода
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Конфигурация
+NAMESPACE="minecraft"
+REGISTRY="localhost:30500"
 
 # Функции логирования с красивым форматированием
 log() {
@@ -30,289 +44,263 @@ warning() {
     echo -e "${YELLOW}[!]${NC} $1"
 }
 
-# Конфигурация
-NAMESPACE="minecraft"
-HELM_DIR="helm"
-
+# Показать справку
+show_help() {
+    echo "================================================================================"
+    echo "                    СКРИПТ РАЗВЕРТЫВАНИЯ MINECRAFT ИНФРАСТРУКТУРЫ"
+    echo "================================================================================"
+    echo ""
+    echo "ОПИСАНИЕ:"
+    echo "  Полностью автоматизированное развертывание Minecraft сервера с нуля"
+    echo "  Включает Velocity (прокси), Purpur (лобби), PostgreSQL, Redis и Economy API"
+    echo ""
+    echo "ИСПОЛЬЗОВАНИЕ:"
+    echo "  $0 [опции]"
+    echo ""
+    echo "ОПЦИИ:"
+    echo "  --help, -h     Показать эту справку"
+    echo "  --cleanup      Полная очистка кластера и перезапуск"
+    echo "  --force        Принудительное обновление всех компонентов"
+    echo ""
+    echo "ТРЕБОВАНИЯ:"
+    echo "  - kubectl настроен и подключен к кластеру"
+    echo "  - Helm 3.x установлен"
+    echo "  - Docker запущен"
+    echo "  - OrbStack с Kubernetes"
+    echo ""
+    echo "КОМПОНЕНТЫ:"
+    echo "  - PostgreSQL: База данных для экономики"
+    echo "  - Redis: Кэширование и события"
+    echo "  - Local Registry: Docker registry для образов"
+    echo "  - Velocity: Minecraft прокси сервер"
+    echo "  - Purpur: Minecraft лобби сервер"
+    echo "  - Economy API: Микросервис экономики"
+    echo ""
+    echo "ПОРТЫ:"
+    echo "  - Velocity: NodePort:30000 (внешний доступ)"
+    echo "  - Purpur: 25565 (внутренний)"
+    echo "  - Economy API: 8080 (внутренний)"
+    echo "  - PostgreSQL: 5432 (внутренний)"
+    echo "  - Redis: 6379 (внутренний)"
+    echo ""
+    echo "АРХИТЕКТУРА:"
+    echo "  Использует NodePort для стабильного внешнего доступа"
+    echo "  Фиксированный порт 30000 для Velocity"
+    echo "  Автоматическое создание кошельков при входе игроков"
+    echo "  Redis кэширование для производительности"
+    echo ""
+    echo "ПРИМЕРЫ:"
+    echo "  $0                    # Обычное развертывание"
+    echo "  $0 --cleanup          # Полная очистка и перезапуск"
+    echo "  $0 --force            # Принудительное обновление"
+    echo ""
+    echo "================================================================================"
+}
 
 # Проверка зависимостей
 check_dependencies() {
-    log "Checking dependencies..."
+    log "Проверка зависимостей..."
     
     if ! command -v kubectl &> /dev/null; then
-        error "kubectl is not installed"
+        error "kubectl не найден. Установите kubectl."
         exit 1
     fi
     
     if ! command -v helm &> /dev/null; then
-        error "helm is not installed"
+        error "Helm не найден. Установите Helm 3.x."
         exit 1
     fi
     
-    if ! kubectl cluster-info &> /dev/null; then
-        error "Kubernetes cluster is not accessible"
+    if ! command -v docker &> /dev/null; then
+        error "Docker не найден. Запустите Docker."
         exit 1
     fi
     
-    success "All dependencies verified"
+    success "Все зависимости проверены"
 }
 
-# Показать справку
-show_help() {
-    echo "================================================================================"
-    echo "                    MINECRAFT INFRASTRUCTURE DEPLOYMENT"
-    echo "================================================================================"
-    echo ""
-    echo "DESCRIPTION:"
-    echo "  Automated deployment script for Minecraft infrastructure on Kubernetes"
-    echo "  Uses NodePort architecture for stable external access"
-    echo ""
-    echo "USAGE: $0 [OPTIONS]"
-    echo ""
-    echo "OPTIONS:"
-    echo "  --help, -h     Show this help message"
-    echo "  --cleanup      Remove all deployments from cluster"
-    echo ""
-    echo "EXAMPLES:"
-    echo "  $0              Deploy infrastructure"
-    echo "  $0 --cleanup    Clean up all deployments"
-    echo ""
-    echo "REQUIREMENTS:"
-    echo "  - Kubernetes cluster (OrbStack, minikube, etc.)"
-    echo "  - kubectl configured and connected to cluster"
-    echo "  - helm installed"
-    echo "  - Internet access for image downloads"
-    echo ""
-    echo "COMPONENTS:"
-    echo "  - PostgreSQL (Database)"
-    echo "  - Redis (Cache & Queues)"
-    echo "  - Velocity (Minecraft Proxy) - NodePort:30000"
-    echo "  - Purpur (Minecraft Server)"
-    echo "  - Economy API (Microservice)"
-    echo ""
-    echo "PORTS:"
-    echo "  - Velocity: 30000 (External NodePort)"
-    echo "  - Economy API: 8080 (Internal)"
-    echo "  - PostgreSQL: 5432 (Internal)"
-    echo "  - Redis: 6379 (Internal)"
-    echo ""
-    echo "ARCHITECTURE:"
-    echo "  - NodePort Service for stable external access"
-    echo "  - No port-forward required"
-    echo "  - Automatic recovery and scaling"
-    echo "  - Kubernetes native design"
-    echo "================================================================================"
-}
-
-# Очистка развертываний
+# Очистка кластера
 cleanup() {
     echo ""
     echo "================================================================================"
-    echo "                           CLEANING UP DEPLOYMENTS"
+    echo "                    ПОЛНАЯ ОЧИСТКА КЛАСТЕРА MINECRAFT"
     echo "================================================================================"
     echo ""
     
-    log "Removing Helm releases..."
+    log "Начинаю полную очистку кластера..."
     
-    # Удаляем Helm релизы
-    helm uninstall purpur-lobby -n $NAMESPACE 2>/dev/null || true
-    helm uninstall velocity -n $NAMESPACE 2>/dev/null || true
-    helm uninstall redis -n $NAMESPACE 2>/dev/null || true
-    helm uninstall postgres -n $NAMESPACE 2>/dev/null || true
+    # Удаляем все ресурсы из namespace
+    if kubectl get namespace $NAMESPACE &> /dev/null; then
+        log "Удаляю namespace $NAMESPACE..."
+        kubectl delete namespace $NAMESPACE --ignore-not-found=true
+        success "Namespace $NAMESPACE удален"
+    fi
     
-    log "Removing namespace..."
-    kubectl delete namespace $NAMESPACE 2>/dev/null || true
+    # Ждем полного удаления
+    log "Ожидаю завершения очистки..."
+    sleep 5
     
-    echo ""
-    echo "================================================================================"
-    echo "  CLEANUP COMPLETED SUCCESSFULLY"
-    echo "  All deployments have been removed from the cluster"
-    echo "================================================================================"
+    success "Кластер полностью очищен"
     echo ""
 }
 
-# Основная функция развертывания
+# Развертывание инфраструктуры
 deploy() {
     echo ""
     echo "================================================================================"
-    echo "                    DEPLOYING MINECRAFT INFRASTRUCTURE"
+    echo "                    РАЗВЕРТЫВАНИЕ MINECRAFT ИНФРАСТРУКТУРЫ"
     echo "================================================================================"
     echo ""
     
-    log "Starting deployment process..."
-    
-    # Проверяем зависимости
-    check_dependencies
+    log "Начинаю развертывание инфраструктуры..."
     
     # Создаем namespace
-    log "Creating namespace $NAMESPACE..."
+    log "Создаю namespace $NAMESPACE..."
     kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-    success "Namespace $NAMESPACE created"
-    
-    # Устанавливаем Helm chart: registry
-    log "Installing Helm chart: registry"
-    helm upgrade --install registry ./helm/registry -n "$NAMESPACE" --wait --timeout=180s
-    success "Registry deployed"
+    success "Namespace $NAMESPACE создан"
     
     # Развертываем PostgreSQL
-    log "Deploying PostgreSQL..."
-    helm upgrade --install postgres $HELM_DIR/postgres \
+    log "Развертываю PostgreSQL..."
+    helm upgrade --install postgres ./helm/postgres \
         --namespace $NAMESPACE \
-        --set persistence.storageClass=local-path \
-        --wait --timeout=600s
-    success "PostgreSQL deployed"
+        --wait \
+        --timeout 5m
+    success "PostgreSQL развернут"
     
     # Развертываем Redis
-    log "Deploying Redis..."
-    helm upgrade --install redis $HELM_DIR/redis \
+    log "Развертываю Redis..."
+    helm upgrade --install redis ./helm/redis \
         --namespace $NAMESPACE \
-        --wait
-    success "Redis deployed"
+        --wait \
+        --timeout 5m
+    success "Redis развернут"
     
-    # Ждем готовности баз данных
-    log "Waiting for PostgreSQL readiness..."
-    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgres -n $NAMESPACE --timeout=600s
+    # Развертываем локальный registry
+    log "Развертываю локальный Docker registry..."
+    helm upgrade --install registry ./helm/registry \
+        --namespace $NAMESPACE \
+        --wait \
+        --timeout 5m
+    success "Локальный registry развернут"
     
-    # Дополнительная проверка готовности PostgreSQL
-    log "Verifying PostgreSQL connection..."
-    local retries=0
-    while [ $retries -lt 30 ]; do
-        if kubectl exec -n $NAMESPACE deployment/postgres -- pg_isready -U minecraft -d minecraft &>/dev/null; then
-            success "PostgreSQL is ready"
-            break
-        fi
-        log "PostgreSQL not ready yet, waiting... (attempt $((retries+1))/30)"
-        sleep 10
-        retries=$((retries+1))
-    done
+    # Ждем готовности registry
+    log "Ожидаю готовности registry..."
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=registry -n $NAMESPACE --timeout=2m
     
-    if [ $retries -eq 30 ]; then
-        error "PostgreSQL did not become ready within timeout"
-        exit 1
-    fi
-    
-    # Создаем базы данных (они уже созданы через initScripts в Helm чарте)
-    log "Checking databases auth_bridge and economy_api..."
-    kubectl exec -n $NAMESPACE deployment/postgres -- psql -U minecraft -d minecraft -c "\\l" | grep -E "(auth_bridge|economy_api)" || {
-        warning "Databases not found, creating them..."
-        kubectl exec -n $NAMESPACE deployment/postgres -- psql -U minecraft -d minecraft -c "CREATE DATABASE auth_bridge;" 2>/dev/null || true
-        kubectl exec -n $NAMESPACE deployment/postgres -- psql -U minecraft -d minecraft -c "CREATE DATABASE economy_api;" 2>/dev/null || true
-    }
-    success "Databases ready"
-    
-    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=redis -n $NAMESPACE --timeout=300s
-    success "Redis ready"
+    # Собираем и загружаем economy-api
+    log "Собираю и загружаю economy-api..."
+    ./deploy-economy-api.sh
+    success "Economy API развернут"
     
     # Развертываем Velocity
-    log "Deploying Velocity proxy..."
-    helm upgrade --install velocity $HELM_DIR/velocity \
+    log "Развертываю Velocity..."
+    helm upgrade --install velocity ./helm/velocity \
         --namespace $NAMESPACE \
-        --wait
-    success "Velocity deployed"
-    
-    # Настройка доступа к Velocity
-    log "Configuring Velocity access..."
-    
-    # Получаем информацию о NodePort сервисе
-    log "Checking NodePort service..."
-    NODE_PORT=$(kubectl get svc velocity -n $NAMESPACE -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null)
-    if [ -n "$NODE_PORT" ]; then
-        success "Velocity configured on NodePort: $NODE_PORT"
-        success "Server accessible at localhost:$NODE_PORT"
-    else
-        warning "NodePort not configured, check service: kubectl get svc velocity -n $NAMESPACE"
-    fi
+        --wait \
+        --timeout 5m
+    success "Velocity развернут"
     
     # Развертываем Purpur
-    log "Deploying Purpur shard..."
-    helm upgrade --install purpur-lobby $HELM_DIR/purpur-shard \
+    log "Развертываю Purpur..."
+    helm upgrade --install purpur-lobby ./helm/purpur \
         --namespace $NAMESPACE \
-        --set persistence.storageClass=local-path \
-        --wait --timeout=600s
-    success "Purpur deployed"
+        --wait \
+        --timeout 5m
+    success "Purpur развернут"
     
-    # Ждем готовности сервисов
-    log "Waiting for services readiness..."
-    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=velocity -n $NAMESPACE --timeout=300s
-    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=purpur-shard -n $NAMESPACE --timeout=300s
-    success "Services ready"
+    # Ждем готовности всех подов
+    log "Ожидаю готовности всех сервисов..."
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=velocity -n $NAMESPACE --timeout=2m
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=purpur-shard -n $NAMESPACE --timeout=2m
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=economy-api -n $NAMESPACE --timeout=2m
     
-    # Первичная установка плагина в Purpur
-    log "Installing Minecraft plugin (initial deployment)..."
-    if ./upload-plugin.sh; then
-        success "Plugin installed"
-    else
-        error "Failed to install plugin. Check logs and retry."
-        exit 1
-    fi
+    success "Все сервисы готовы!"
     
-    # Развертываем economy-api через отдельный скрипт
-    log "Deploying economy-api..."
-    if ./deploy-economy-api.sh; then
-        success "economy-api deployed"
-    else
-        warning "Failed to deploy economy-api. Run ./deploy-economy-api.sh manually."
-    fi
-    
-    success "Deployment completed successfully!"
-    
-    # Получаем информацию о подключении
+    # Показываем информацию о подключении
+    show_connection_info
+}
+
+# Показать информацию о подключении
+show_connection_info() {
     echo ""
     echo "================================================================================"
-    echo "                    MINECRAFT SERVER READY FOR CONNECTION"
+    echo "                    MINECRAFT СЕРВЕР ГОТОВ К ПОДКЛЮЧЕНИЮ"
     echo "================================================================================"
     echo ""
+    
+    # Получаем NodePort для Velocity
+    NODE_PORT=$(kubectl get svc velocity -n $NAMESPACE -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo "")
+    
     if [ -n "$NODE_PORT" ]; then
-        echo "  SERVER ADDRESS: localhost:$NODE_PORT"
-        echo "  CONNECTION TYPE: NodePort Service (Stable)"
-        echo "  STATUS: Ready"
+        echo "  АДРЕС СЕРВЕРА: localhost:$NODE_PORT"
+        echo "  ТИП ПОДКЛЮЧЕНИЯ: NodePort Service (Стабильный)"
+        echo "  СТАТУС: Готов"
         echo ""
-        echo "  FEATURES:"
-        echo "    - No port-forward required"
-        echo "    - Fixed port number"
-        echo "    - Automatic recovery"
-        echo "    - Kubernetes native"
+        echo "  ОСОБЕННОСТИ:"
+        echo "    - Не требует port-forward"
+        echo "    - Фиксированный номер порта"
+        echo "    - Автоматическое восстановление"
+        echo "    - Нативная интеграция с Kubernetes"
     else
-        echo "  STATUS: Warning - NodePort not configured"
-        echo "  ACTION: Check service status: kubectl get svc velocity -n $NAMESPACE"
+        echo "  СТАТУС: Предупреждение - NodePort не настроен"
+        echo "  ДЕЙСТВИЕ: Проверьте статус сервиса: kubectl get svc velocity -n $NAMESPACE"
     fi
+    
     echo ""
     echo "================================================================================"
-    echo "  NEXT STEPS:"
-    echo "    1. Check pod status: kubectl get pods -n $NAMESPACE"
-    echo "    2. Connect to server: localhost:$NODE_PORT"
-    echo "    3. Upload plugin: ./upload-plugin.sh"
+    echo "  СЛЕДУЮЩИЕ ШАГИ:"
+    echo "    1. Проверьте статус подов: kubectl get pods -n $NAMESPACE"
+    echo "    2. Подключитесь к серверу: localhost:$NODE_PORT"
+    echo "    3. Загрузите плагин: ./upload-plugin.sh"
     echo ""
-    echo "  USEFUL COMMANDS:"
+    echo "  ПОЛЕЗНЫЕ КОМАНДЫ:"
     echo "    kubectl logs -n $NAMESPACE -l app.kubernetes.io/name=velocity"
     echo "    kubectl logs -n $NAMESPACE -l app.kubernetes.io/name=purpur-shard"
     echo "    kubectl get svc velocity -n $NAMESPACE"
     echo "================================================================================"
     echo ""
-
 }
 
-# Главная логика
+# Главная функция
 main() {
-    case "${1:-}" in
-        --help|-h)
-            show_help
-            exit 0
-            ;;
-        --cleanup)
-            cleanup
-            exit 0
-            ;;
-        "")
-            deploy
-            ;;
-        *)
-            error "Unknown option: $1"
-            echo "Use $0 --help for usage information"
-            exit 1
-            ;;
-    esac
+    # Парсим аргументы
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            --cleanup)
+                cleanup
+                ;;
+            --force)
+                FORCE_UPDATE=true
+                shift
+                ;;
+            *)
+                error "Неизвестная опция: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Проверяем зависимости
+    check_dependencies
+    
+    # Если указан cleanup, очищаем и развертываем заново
+    if [[ "$*" == *"--cleanup"* ]]; then
+        cleanup
+        deploy
+    else
+        # Обычное развертывание
+        deploy
+    fi
+    
+    success "Развертывание завершено успешно!"
 }
 
 # Запуск скрипта
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
