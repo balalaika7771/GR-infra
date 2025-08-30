@@ -108,25 +108,71 @@ show_help() {
 cleanup() {
     echo ""
     echo "================================================================================"
-    echo "                           CLEANING UP DEPLOYMENTS"
+    echo "                           ПОЛНАЯ ОЧИСТКА КЛАСТЕРА"
     echo "================================================================================"
     echo ""
     
-    log "Removing Helm releases..."
+    log "Начинаю полную очистку кластера..."
     
-    # Удаляем Helm релизы
-    helm uninstall purpur-lobby -n $NAMESPACE 2>/dev/null || true
-    helm uninstall velocity -n $NAMESPACE 2>/dev/null || true
-    helm uninstall redis -n $NAMESPACE 2>/dev/null || true
-    helm uninstall postgres -n $NAMESPACE 2>/dev/null || true
+    # Останавливаем все port-forward процессы
+    log "Останавливаю все port-forward процессы..."
+    pkill -f "kubectl port-forward" 2>/dev/null || true
+    sleep 3
     
-    log "Removing namespace..."
-    kubectl delete namespace $NAMESPACE 2>/dev/null || true
+    # Удаляем все Helm релизы
+    log "Удаляю Helm релизы..."
+    helm uninstall purpur-lobby -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+    helm uninstall velocity -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+    helm uninstall economy-api -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+    helm uninstall redis -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+    helm uninstall postgres -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+    helm uninstall registry -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+    success "Helm релизы удалены"
+    
+    # Ждем завершения удаления Helm релизов
+    log "Ожидаю завершения удаления Helm релизов..."
+    sleep 10
+    
+    # Удаляем все ресурсы из namespace
+    if kubectl get namespace $NAMESPACE &> /dev/null; then
+        log "Удаляю все ресурсы из namespace $NAMESPACE..."
+        
+        # Удаляем deployments
+        kubectl delete deployment --all -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+        
+        # Удаляем services
+        kubectl delete service --all -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+        
+        # Удаляем pods
+        kubectl delete pod --all -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+        
+        # Удаляем PVC
+        kubectl delete pvc --all -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+        
+        # Удаляем ConfigMaps
+        kubectl delete configmap --all -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+        
+        # Удаляем namespace
+        log "Удаляю namespace $NAMESPACE..."
+        kubectl delete namespace $NAMESPACE --ignore-not-found=true
+        success "Namespace $NAMESPACE удален"
+    else
+        log "Namespace $NAMESPACE не найден, пропускаю"
+    fi
+    
+    # Ждем полного удаления и очищаем кэш
+    log "Ожидаю завершения очистки..."
+    sleep 15
+    
+    # Очищаем Docker образы если они есть
+    log "Очищаю Docker образы..."
+    docker rmi localhost:30500/economy-api:latest 2>/dev/null || true
+    docker rmi localhost:30500/economy-plugin:latest 2>/dev/null || true
     
     echo ""
     echo "================================================================================"
-    echo "  CLEANUP COMPLETED SUCCESSFULLY"
-    echo "  All deployments have been removed from the cluster"
+    echo "  КЛАСТЕР ПОЛНОСТЬЮ ОЧИЩЕН"
+    echo "  Все развертывания удалены из кластера"
     echo "================================================================================"
     echo ""
 }

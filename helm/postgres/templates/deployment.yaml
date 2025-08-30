@@ -42,9 +42,9 @@ spec:
                 - pg_isready
                 - -U
                 - {{ .Values.env.POSTGRES_USER }}
-            initialDelaySeconds: 30
+            initialDelaySeconds: 15
             periodSeconds: 10
-            timeoutSeconds: 5
+            timeoutSeconds: 3
             failureThreshold: 3
           livenessProbe:
             exec:
@@ -52,8 +52,8 @@ spec:
                 - pg_isready
                 - -U
                 - {{ .Values.env.POSTGRES_USER }}
-            initialDelaySeconds: 60
-            periodSeconds: 30
+            initialDelaySeconds: 30
+            periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
       volumes:

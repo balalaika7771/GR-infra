@@ -43,23 +43,27 @@ fi
 
 # Проверка зависимостей
 check_dependencies() {
-    log "Проверяем зависимости..."
+    log "Проверка зависимостей..."
     
-    # Проверяем kubectl
-    if ! command -v kubectl &> /dev/null; then
-        error "kubectl не найден. Установите kubectl и попробуйте снова."
+    # Проверяем Gradle (локальный wrapper или глобальный)
+    if [ -f "./services/economy-api/gradlew" ]; then
+        GRADLE_CMD="$(pwd)/services/economy-api/gradlew"
+        log "Используется локальный Gradle wrapper: $GRADLE_CMD"
+    elif command -v gradle &> /dev/null; then
+        GRADLE_CMD="gradle"
+        log "Используется глобальный Gradle"
+    else
+        error "Gradle не найден. Установите Gradle 8.5+ или используйте gradlew."
         exit 1
     fi
     
-    # Проверяем mvn
-    if ! command -v mvn &> /dev/null; then
-        error "Maven не найден. Установите Maven и попробуйте снова."
-        exit 1
-    fi
-    
-    # Проверяем Docker
     if ! command -v docker &> /dev/null; then
-        error "Docker не найден. Установите Docker и попробуйте снова."
+        error "Docker не найден. Запустите Docker."
+        exit 1
+    fi
+    
+    if ! kubectl get namespace $NAMESPACE &> /dev/null; then
+        error "Namespace $NAMESPACE не найден. Запустите deploy.sh сначала."
         exit 1
     fi
     
@@ -106,17 +110,17 @@ build_economy_api() {
     
     # Очистка предыдущей сборки
     log "Очистка предыдущей сборки..."
-    mvn clean -q
+    $GRADLE_CMD clean -q
     
     # Компиляция
     log "Компиляция..."
-    mvn compile -q
+    $GRADLE_CMD compileJava -q
     
     # Сборка JAR
     log "Сборка JAR файла..."
-    mvn package -DskipTests -q
+    $GRADLE_CMD bootJar -q
     
-    success "economy-api собран: target/economy-api-1.0.0.jar"
+    success "economy-api собран: build/libs/economy-api-1.0.0.jar"
     
     cd - > /dev/null
 }

@@ -36,35 +36,43 @@ PURPUR_LABEL="app.kubernetes.io/name=purpur-shard"
 PLUGIN_NAME="purpur-plugin"
 PLUGIN_JAR="purpur-plugin-1.0.0.jar"
 PLUGIN_DIR="plugin/purpur-plugin"
-TARGET_DIR="target"
+TARGET_DIR="build/libs"
+GRADLE_CMD=""
 
 # Проверка зависимостей
 check_dependencies() {
-    log_info "Checking dependencies..."
+    log_info "Проверка зависимостей..."
     
     if ! command -v kubectl &> /dev/null; then
-        log_error "kubectl is not installed"
-        exit 1
-    fi
-    
-    if ! command -v mvn &> /dev/null; then
-        log_error "Maven is not installed"
+        log_error "kubectl не найден"
         exit 1
     fi
     
     if ! command -v java &> /dev/null; then
-        log_error "Java is not installed"
+        log_error "Java не найден"
         exit 1
     fi
     
     # Проверяем версию Java
     JAVA_VERSION=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2 | cut -d'.' -f1)
     if [ "$JAVA_VERSION" -lt "17" ]; then
-        log_error "Java 17+ required, current version: $JAVA_VERSION"
+        log_error "Требуется Java 17+, текущая версия: $JAVA_VERSION"
         exit 1
     fi
     
-    log_success "All dependencies verified"
+    # Проверяем Gradle (локальный wrapper или глобальный)
+    if [ -f "$PLUGIN_DIR/gradlew" ]; then
+        GRADLE_CMD="$(pwd)/$PLUGIN_DIR/gradlew"
+        log_info "Используется локальный Gradle wrapper: $GRADLE_CMD"
+    elif command -v gradle &> /dev/null; then
+        GRADLE_CMD="gradle"
+        log_info "Используется глобальный Gradle"
+    else
+        log_error "Gradle не найден. Установите Gradle 8.5+ или используйте gradlew."
+        exit 1
+    fi
+    
+    log_success "Все зависимости проверены"
 }
 
 # Проверка Kubernetes кластера
@@ -86,7 +94,7 @@ check_kubernetes() {
 
 # Сборка плагина
 build_plugin() {
-    log_info "Собираем плагин..."
+    log_info "Начинаю сборку плагина..."
     
     if [ ! -d "$PLUGIN_DIR" ]; then
         log_error "Директория плагина не найдена: $PLUGIN_DIR"
@@ -95,21 +103,23 @@ build_plugin() {
     
     cd "$PLUGIN_DIR"
     
-    log_info "Очистка предыдущей сборки..."
-    mvn clean
+    if [[ "$*" == *"--clean"* ]]; then
+        log_info "Очистка предыдущей сборки..."
+        $GRADLE_CMD clean
+    fi
     
     log_info "Компиляция плагина..."
-    mvn compile
+    $GRADLE_CMD compileJava
     
     log_info "Сборка JAR файла..."
-    mvn package -DskipTests
+    $GRADLE_CMD jar
     
-    if [ ! -f "$TARGET_DIR/$PLUGIN_JAR" ]; then
-        log_error "JAR файл не создан: $TARGET_DIR/$PLUGIN_JAR"
+    if [ ! -f "$TARGET_DIR/${PLUGIN_NAME}-*.jar" ] && [ ! -f "$TARGET_DIR/${PLUGIN_NAME}-1.0.0.jar" ]; then
+        log_error "JAR файл не создан. Проверьте ошибки сборки."
         exit 1
     fi
     
-    log_success "Плагин собран: $TARGET_DIR/$PLUGIN_JAR"
+    log_success "Плагин успешно собран"
     cd - > /dev/null
 }
 
@@ -131,8 +141,18 @@ upload_plugin() {
     
     log_info "Загружаем плагин в под $pod_name..."
     
+    # Находим JAR файл
+    local jar_file=$(find "$PLUGIN_DIR/$TARGET_DIR" -name "${PLUGIN_NAME}-*.jar" | head -1)
+    
+    if [ -z "$jar_file" ]; then
+        log_error "JAR файл не найден. Сначала соберите плагин."
+        exit 1
+    fi
+    
+    log_info "Найден JAR файл: $jar_file"
+    
     # Копируем JAR файл в под
-    kubectl cp "$PLUGIN_DIR/$TARGET_DIR/$PLUGIN_JAR" "$NAMESPACE/$pod_name:/data/plugins/" || {
+    kubectl cp "$jar_file" "$NAMESPACE/$pod_name:/data/plugins/" || {
         log_error "Не удалось скопировать плагин в под"
         exit 1
     }
@@ -207,12 +227,12 @@ show_help() {
     echo ""
     echo "Требования:"
     echo "  - Kubernetes кластер с запущенным Purpur"
-    echo "  - Maven для сборки плагина"
+    echo "  - Gradle для сборки плагина"
     echo "  - Java 17+ для компиляции"
     echo "  - kubectl настроен и подключен к кластеру"
     echo ""
     echo "Процесс:"
-    echo "1. Сборка плагина с помощью Maven"
+    echo "1. Сборка плагина с помощью Gradle"
     echo "2. Копирование JAR в под Purpur"
     echo "3. Перезапуск пода для загрузки плагина"
     echo "4. Проверка успешной загрузки"
@@ -284,17 +304,8 @@ main() {
     log_success "Плагин успешно загружен!"
     
     echo ""
-    echo "Следующие шаги:"
-    echo "1. Подключитесь к серверу Minecraft"
-    echo "2. Используйте команды плагина: /balance, /transfer"
-    echo "3. Проверьте логи: kubectl logs -n $NAMESPACE -l $PURPUR_LABEL"
-    echo ""
     echo "Доступные команды плагина:"
     echo "  /balance - показать баланс"
-    echo "  /transfer <игрок> <сумма> - перевести деньги"
-    echo "  /auth - информация об аккаунте"
-    echo "  /ping - показать ping"
-    echo "  /nms - тест NMS функций"
 }
 
 # Запуск скрипта

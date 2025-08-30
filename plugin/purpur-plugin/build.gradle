@@ -1,0 +1,65 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://repo.papermc.io/repository/maven-public/' }
+    maven { url 'https://repo.papermc.io/repository/maven-snapshots/' }
+}
+
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:1.21.5-R0.1-SNAPSHOT'
+    
+    // HTTP клиент для API
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.0'
+    
+    // Redis клиент
+    implementation 'redis.clients:jedis:5.1.0'
+    
+    // Логирование
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+}
+
+
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-parameters']
+}
+
+jar {
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes(
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'AI Assistant'
+        )
+    }
+}
+
+// Задача для очистки
+task cleanAll(type: Delete) {
+    delete 'build', 'target'
+}
+
+// Задача для быстрой сборки
+task buildFast {
+    dependsOn 'jar'
+    doLast {
+        println "Плагин собран: ${jar.archiveFile.get()}"
+    }
+}
