@@ -35,6 +35,30 @@ NAMESPACE="minecraft"
 HELM_DIR="helm"
 
 
+# Проверка и исправление Docker прав
+check_docker_access() {
+    if command -v docker &> /dev/null; then
+        if ! docker info &> /dev/null; then
+            warning "Нет доступа к Docker daemon"
+            log "Попытка исправить права доступа..."
+            if [ -S /var/run/docker.sock ]; then
+                sudo chmod 666 /var/run/docker.sock
+                if docker info &> /dev/null; then
+                    success "Права доступа к Docker daemon исправлены"
+                else
+                    error "Не удалось исправить права доступа к Docker"
+                    exit 1
+                fi
+            else
+                error "Docker socket не найден. Убедитесь, что Docker Desktop запущен"
+                exit 1
+            fi
+        else
+            success "Docker daemon доступен"
+        fi
+    fi
+}
+
 # Проверка зависимостей
 check_dependencies() {
     log "Checking dependencies..."
@@ -197,6 +221,9 @@ deploy() {
     
     # Проверяем зависимости
     check_dependencies
+    
+    # Проверяем доступ к Docker
+    check_docker_access
     
     # Создаем namespace
     log "Creating namespace $NAMESPACE..."

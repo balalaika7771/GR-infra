@@ -97,6 +97,36 @@ if ! command -v docker &> /dev/null; then
     warning "Или используйте: curl -fsSL https://get.docker.com | sh"
 else
     success "Docker доступен"
+    
+    # Настройка прав доступа к Docker
+    log "Настройка прав доступа к Docker..."
+    if ! groups $USER | grep -q docker; then
+        sudo usermod -aG docker $USER
+        log "Пользователь добавлен в группу docker"
+        warning "Необходимо перезапустить WSL2 или выполнить: newgrp docker"
+    else
+        success "Пользователь уже в группе docker"
+    fi
+    
+    # Проверка подключения к Docker daemon
+    if ! docker info &> /dev/null; then
+        warning "Нет доступа к Docker daemon"
+        log "Попытка исправить права доступа..."
+        if [ -S /var/run/docker.sock ]; then
+            sudo chmod 666 /var/run/docker.sock
+            if docker info &> /dev/null; then
+                success "Права доступа к Docker daemon исправлены"
+            else
+                warning "Не удалось исправить права доступа"
+                warning "Попробуйте перезапустить WSL2 или Docker Desktop"
+            fi
+        else
+            warning "Docker socket не найден"
+            warning "Убедитесь, что Docker Desktop запущен"
+        fi
+    else
+        success "Docker daemon доступен"
+    fi
 fi
 
 # Проверка Kubernetes кластера
