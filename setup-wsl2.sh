@@ -31,7 +31,7 @@ warning() {
 }
 
 # Проверка, что мы в WSL2
-if ! grep -q Microsoft /proc/version; then
+if ! grep -q microsoft /proc/version; then
     error "Этот скрипт предназначен для WSL2"
     exit 1
 fi
