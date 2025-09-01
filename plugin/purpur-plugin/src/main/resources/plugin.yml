@@ -9,8 +9,15 @@ commands:
     description: Показать баланс кошелька
     usage: /balance
     permission: economy.balance
+  transfer:
+    description: Перевести деньги другому игроку
+    usage: /transfer <игрок> <сумма> [описание]
+    permission: economy.transfer
 
 permissions:
   economy.balance:
     description: Разрешает использовать команду /balance
+    default: true
+  economy.transfer:
+    description: Разрешает использовать команду /transfer
     default: true

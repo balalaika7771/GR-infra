@@ -32,7 +32,7 @@ public class TxLedger {
     private OffsetDateTime createdAt = OffsetDateTime.now();
     
     public enum TransactionType {
-        PURCHASE, REFUND, ADMIN_ADJUSTMENT
+        PURCHASE, REFUND, ADMIN_ADJUSTMENT, TRANSFER
     }
     
     public UUID getId() {

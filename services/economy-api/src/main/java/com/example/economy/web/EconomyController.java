@@ -1,8 +1,11 @@
 package com.example.economy.web;
 
 import com.example.economy.service.PurchaseService;
+import com.example.economy.service.TransferService;
 import com.example.economy.repo.WalletRepository;
 import com.example.economy.model.Wallet;
+import com.example.economy.web.dto.TransferRequest;
+import com.example.economy.web.dto.TransferResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -22,11 +25,14 @@ import java.util.concurrent.TimeUnit;
 public class EconomyController {
     
     private final PurchaseService purchaseService;
+    private final TransferService transferService;
     private final StringRedisTemplate redisTemplate;
     private final WalletRepository walletRepo;
     
-    public EconomyController(PurchaseService purchaseService, StringRedisTemplate redisTemplate, WalletRepository walletRepo) {
+    public EconomyController(PurchaseService purchaseService, TransferService transferService, 
+                           StringRedisTemplate redisTemplate, WalletRepository walletRepo) {
         this.purchaseService = purchaseService;
+        this.transferService = transferService;
         this.redisTemplate = redisTemplate;
         this.walletRepo = walletRepo;
     }
@@ -114,6 +120,22 @@ public class EconomyController {
             
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Failed to get cache stats: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/transfer")
+    @Operation(summary = "Перевод денег между игроками", description = "Переводит указанную сумму от одного игрока к другому")
+    public ResponseEntity<TransferResponse> transferMoney(@RequestBody TransferRequest request) {
+        try {
+            TransferResponse response = transferService.transferMoney(request);
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid transfer request: " + e.getMessage());
+        } catch (IllegalStateException e) {
+            throw new IllegalStateException("Transfer failed: " + e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException("Unexpected error during transfer: " + e.getMessage());
         }
     }
 }

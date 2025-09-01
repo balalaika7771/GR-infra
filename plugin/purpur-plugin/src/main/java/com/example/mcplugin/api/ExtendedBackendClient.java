@@ -63,7 +63,39 @@ public class ExtendedBackendClient {
             return new BalanceResponse(playerName, balance, "COINS");
         }
     }
+
+    /**
+     * Переводит деньги от одного игрока к другому.
+     */
+    public TransferResponse transferMoney(String fromPlayer, String toPlayer, double amount, String description) throws IOException {
+        var transferRequest = new TransferRequest(fromPlayer, toPlayer, amount, description);
+        String jsonRequest = mapper.writeValueAsString(transferRequest);
+        
+        var httpRequest = new Request.Builder()
+            .url(economyUrl + "/api/economy/transfer")
+            .post(RequestBody.create(jsonRequest, MediaType.parse("application/json")))
+            .build();
+        
+        try (var response = client.newCall(httpRequest).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("Transfer failed: " + response.code());
+            }
+            
+            var responseBody = response.body();
+            if (responseBody == null) {
+                throw new IOException("Empty response");
+            }
+            
+            String responseText = responseBody.string();
+            return mapper.readValue(responseText, TransferResponse.class);
+        }
+    }
     
     // Record classes for responses
     public record BalanceResponse(String userId, double balance, String currency) {}
+    
+    public record TransferRequest(String fromUserId, String toUserId, double amount, String description) {}
+    
+    public record TransferResponse(String transactionId, String fromUserId, String toUserId, 
+                                 double amount, double fromBalance, double toBalance, String message) {}
 }

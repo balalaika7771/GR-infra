@@ -47,6 +47,36 @@ public class DemoCommands implements CommandExecutor {
             return true;
         }
         
+        if (command.getName().equalsIgnoreCase("transfer")) {
+            if (args.length < 2) {
+                player.sendMessage("§cИспользование: /transfer <игрок> <сумма> [описание]");
+                return true;
+            }
+            
+            try {
+                String targetPlayer = args[0];
+                double amount = Double.parseDouble(args[1]);
+                String description = args.length > 2 ? String.join(" ", args).substring(args[0].length() + args[1].length() + 2) : "Перевод";
+                
+                if (amount <= 0) {
+                    player.sendMessage("§cСумма должна быть больше 0!");
+                    return true;
+                }
+                
+                var transferResponse = backendClient.transferMoney(playerUuid, targetPlayer, amount, description);
+                player.sendMessage("§aПеревод выполнен успешно!");
+                player.sendMessage("§eОтправлено: §a" + amount + " монет игроку §e" + targetPlayer);
+                player.sendMessage("§eВаш новый баланс: §a" + transferResponse.fromBalance() + " монет");
+                
+            } catch (NumberFormatException e) {
+                player.sendMessage("§cНеверная сумма!");
+            } catch (IOException e) {
+                logger.warning("Ошибка при переводе для игрока " + player.getName() + ": " + e.getMessage());
+                player.sendMessage("§cОшибка при переводе!");
+            }
+            return true;
+        }
+        
         return false;
     }
 }

@@ -35,6 +35,7 @@ public class MainPlugin extends JavaPlugin {
         var demoCommands = new DemoCommands(this, backendClient);
         
         getCommand("balance").setExecutor(demoCommands);
+        getCommand("transfer").setExecutor(demoCommands);
     }
     
     private void registerListeners() {
