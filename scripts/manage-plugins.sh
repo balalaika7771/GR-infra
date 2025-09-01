@@ -15,7 +15,18 @@ log_warning() { echo -e "${YELLOW}!${NC} $1"; }
 log_error() { echo -e "${RED}✗${NC} $1"; }
 
 # Конфигурация
-ARTIFACTORY_HOST="localhost"
+# Автоматически определяем IP хоста для WSL2 совместимости
+if command -v ip &> /dev/null; then
+    # Получаем IP хоста Windows из WSL2
+    HOST_IP=$(ip route show default | awk '/default/ {print $3}' | head -1)
+    if [ -z "$HOST_IP" ]; then
+        HOST_IP="localhost"
+    fi
+else
+    HOST_IP="localhost"
+fi
+
+ARTIFACTORY_HOST="$HOST_IP"
 ARTIFACTORY_PORT="30002"
 DOCKER_REGISTRY_PORT="30502"
 NAMESPACE="minecraft"

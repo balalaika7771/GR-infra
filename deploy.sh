@@ -292,7 +292,17 @@ deploy() {
         log "Building and pushing Economy API Docker image..."
         # Только сборка и push образа, без обновления deployment
         TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
-        ARTIFACT_URL="http://host.docker.internal:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+        # Автоматически определяем IP хоста для WSL2 совместимости
+        if command -v ip &> /dev/null; then
+            HOST_IP=$(ip route show default | awk '/default/ {print $3}' | head -1)
+            if [ -z "$HOST_IP" ]; then
+                HOST_IP="host.docker.internal"
+            fi
+        else
+            HOST_IP="host.docker.internal"
+        fi
+        
+        ARTIFACT_URL="http://$HOST_IP:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
         
         docker build -f services/economy-api/Dockerfile \
             --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
