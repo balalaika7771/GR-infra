@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "artifactory.fullname" . }}
+  labels:
+    {{- include "artifactory.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.artifactory.service.type }}
+  ports:
+    - port: {{ .Values.artifactory.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+      {{- if eq .Values.artifactory.service.type "NodePort" }}
+      nodePort: {{ .Values.artifactory.service.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "artifactory.selectorLabels" . | nindent 4 }}

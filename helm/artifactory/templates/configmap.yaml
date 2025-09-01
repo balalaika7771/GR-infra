@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "artifactory.fullname" . }}-init
+  labels:
+    {{- include "artifactory.labels" . | nindent 4 }}
+data:
+  init-artifactory.sh: |
+    #!/bin/bash
+    
+    # Ждем запуска Artifactory
+    echo "Ожидание запуска Artifactory..."
+    while ! curl -s http://localhost:8081/artifactory/api/system/ping > /dev/null; do
+      sleep 5
+    done
+    
+    echo "Artifactory запущен, инициализируем репозитории..."
+    
+    # Создаем репозиторий minecraft-plugins
+    curl -u admin:admin123 \
+      -X PUT \
+      -H "Content-Type: application/json" \
+      -d '{
+        "key": "minecraft-plugins",
+        "rclass": "local",
+        "packageType": "maven",
+        "description": "Minecraft plugins repository"
+      }' \
+      http://localhost:8081/artifactory/api/repositories/minecraft-plugins
+    
+    # Создаем репозиторий economy-api
+    curl -u admin:admin123 \
+      -X PUT \
+      -H "Content-Type: application/json" \
+      -d '{
+        "key": "economy-api",
+        "rclass": "local",
+        "packageType": "maven",
+        "description": "Economy API service"
+      }' \
+      http://localhost:8081/artifactory/api/repositories/economy-api
+    
+    echo "Репозитории созданы успешно!"
+    
+    # Список репозиториев
+    echo "Доступные репозитории:"
+    curl -u admin:admin123 http://localhost:8081/artifactory/api/repositories

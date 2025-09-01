@@ -1,296 +1,303 @@
-# 🎮 Minecraft Infrastructure Project
+# GR Minecraft Infrastructure
 
-Полностью автоматизированная инфраструктура Minecraft сервера на Kubernetes с экономической системой.
-
-## 📋 Описание
-
-Этот проект предоставляет готовое решение для развертывания Minecraft сервера с:
-- **Velocity** - прокси сервер для балансировки нагрузки
-- **Purpur** - высокопроизводительный Minecraft сервер
-- **PostgreSQL** - база данных для экономики
-- **Redis** - кэширование и события
-- **Economy API** - микросервис экономики
-- **Автоматическое создание кошельков** при входе игроков
+Полная инфраструктура для Minecraft сервера с плагинами GR, включающая Kubernetes развертывание, Artifactory для артефактов и автоматизированные скрипты управления.
 
 ## 🏗️ Архитектура
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Игроки        │───▶│    Velocity     │───▶│     Purpur      │
-│                 │    │   (Порт 30000)  │    │   (Лобби)      │
+│   Velocity      │    │   Purpur        │    │  Economy API    │
+│   (Proxy)       │◄──►│   (Server)      │◄──►│   (Service)     │
+│   Port: 30000   │    │   Port: 25565   │    │   Port: 8080    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │                       │
-                                ▼                       ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │  Economy API    │    │   PostgreSQL    │
-                       │   (Микросервис) │    │   (База данных) │
-                       └─────────────────┘    └─────────────────┘
-                                │                       │
-                                ▼                       ▼
-                       ┌─────────────────┐
-                       │     Redis       │
-                       │   (Кэш)        │
-                       └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Artifactory   │    │   PostgreSQL    │    │     Redis       │
+│   (Port: 30002) │    │   (Port: 5432)  │    │   (Port: 6379)  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 ## 🚀 Быстрый старт
 
-### Требования
-- Kubernetes кластер (OrbStack, minikube, etc.)
-- kubectl настроен и подключен к кластеру
-- Helm 3.x установлен
-- Docker запущен
-- **Gradle 8.5+** (для сборки плагинов и сервисов) ⭐ **НОВОЕ!**
-
-### Развертывание
+### 1. Полное развертывание
 ```bash
-# Клонируйте репозиторий
-git clone <repository-url>
-cd GR-infro/repo
-
-# Запустите полное развертывание
+# Очистка и развертывание с нуля
+./deploy.sh --cleanup
 ./deploy.sh
-
-# Подключитесь к серверу
-# Адрес: localhost:30000
 ```
 
-## 📚 Обзор скриптов
+### 2. Обновление плагинов
+```bash
+# Обновить все плагины и economy-api
+./scripts/update.sh --all
+
+# Обновить только определенный плагин
+./scripts/update.sh --gr-core
+./scripts/update.sh --gr-player
+./scripts/update.sh --gr-race
+./scripts/update.sh --purpur-plugin
+
+# Обновить только economy-api
+./scripts/update.sh --economy-api
+```
+
+## 📁 Структура проекта
+
+```
+repo/
+├── deploy.sh                    # Основной скрипт развертывания
+├── scripts/
+│   ├── update.sh               # Скрипт обновления плагинов
+│   └── manage-plugins.sh       # Скрипт управления плагинами
+├── helm/                        # Helm charts для Kubernetes
+│   ├── artifactory/            # Artifactory (Nginx + статика)
+│   ├── postgres/               # PostgreSQL база данных
+│   ├── redis/                  # Redis кэш
+│   ├── registry/               # Docker Registry
+│   ├── velocity/               # Velocity proxy
+│   ├── purpur-shard/           # Purpur сервер
+│   └── economy-api/            # Economy API сервис
+├── plugin/
+│   └── purpur-plugin/          # Основной плагин
+└── services/
+    └── economy-api/            # Сервис экономики
+```
+
+## 🔧 Основные скрипты
 
 ### `deploy.sh` - Основной скрипт развертывания
-**Назначение**: Полное развертывание всей инфраструктуры с нуля
 
-**Возможности**:
-- Автоматическое создание namespace и всех компонентов
-- Развертывание PostgreSQL, Redis, Velocity, Purpur
-- Сборка и развертывание Economy API
-- Настройка NodePort для внешнего доступа
-- Проверка готовности всех сервисов
+**Назначение:** Полное развертывание инфраструктуры с нуля
 
-**Использование**:
+**Использование:**
 ```bash
-./deploy.sh              # Обычное развертывание
-./deploy.sh --cleanup    # Полная очистка и перезапуск
-./deploy.sh --force      # Принудительное обновление
+./deploy.sh              # Развертывание
+./deploy.sh --cleanup    # Полная очистка кластера
 ```
 
-### `upload-plugin.sh` - Развертывание Minecraft плагина
-**Назначение**: Автоматическая сборка и загрузка плагина экономики
+**Что делает:**
+1. **Инфраструктура:** Создает namespace, PostgreSQL, Redis, Registry, Artifactory
+2. **Плагины:** Собирает и публикует все плагины в Artifactory
+3. **Сервисы:** Развертывает Velocity, Purpur, Economy API
+4. **Проверка:** Валидирует работоспособность всех сервисов
 
-**Возможности**:
-- **Gradle сборка JAR файла** ⭐ **НОВОЕ!**
-- Создание Docker образа
-- Загрузка в локальный registry
-- Копирование в pod Purpur
-- Автоматический перезапуск сервера
+**Особенности:**
+- Использует `manage-plugins.sh` для публикации артефактов
+- Автоматически собирает Docker образы
+- Настраивает persistent storage для мира
+- Применяет стратегию `Recreate` для Purpur
 
-**Использование**:
+### `scripts/update.sh` - Обновление плагинов и сервисов
+
+**Назначение:** Быстрое обновление плагинов и economy-api во время разработки
+
+**Использование:**
 ```bash
-./upload-plugin.sh              # Обычная сборка и загрузка
-./upload-plugin.sh --force      # Принудительная пересборка
-./upload-plugin.sh --clean      # Очистка и пересборка
+./scripts/update.sh --all              # Обновить все
+./scripts/update.sh --gr-core          # Только gr-core-plugin
+./scripts/update.sh --gr-player        # Только gr-player-plugin
+./scripts/update.sh --gr-race          # Только gr-race-plugin
+./scripts/update.sh --purpur-plugin    # Только purpur-plugin
+./scripts/update.sh --economy-api      # Только economy-api
+./scripts/update.sh --restart-purpur   # Перезапустить Purpur
 ```
 
-### `deploy-economy-api.sh` - Развертывание Economy API
-**Назначение**: Независимое развертывание микросервиса экономики
+**Что делает:**
+1. **Сборка:** Компилирует выбранные плагины/сервисы
+2. **Публикация:** Загружает JAR в Artifactory
+3. **Обновление:** Перезапускает соответствующие сервисы
+4. **Валидация:** Проверяет успешность обновления
 
-**Возможности**:
-- **Gradle сборка Spring Boot приложения** ⭐ **НОВОЕ!**
-- Создание Docker образа
-- Загрузка в registry
-- Обновление Kubernetes deployment
-- Проверка готовности сервиса
+**Особенности:**
+- Селективное обновление (только нужные компоненты)
+- Автоматический перезапуск Purpur для применения плагинов
+- Проверка зависимостей и кластера
+- Цветной вывод с логированием
 
-**Использование**:
+### `scripts/manage-plugins.sh` - Управление плагинами
+
+**Назначение:** Публикация плагинов и JAR файлов в Artifactory
+
+**Использование:**
 ```bash
-./deploy-economy-api.sh              # Обычная сборка и развертывание
-./deploy-economy-api.sh --force      # Принудительная пересборка
-./deploy-economy-api.sh --clean      # Очистка и пересборка
+./scripts/manage-plugins.sh publish     # Опубликовать все плагины
+./scripts/manage-plugins.sh economy-api # Обновить economy-api
+./scripts/manage-plugins.sh full        # Полный цикл
 ```
 
-### `dev-economy-api.sh` - Разработка Economy API
-**Назначение**: Интерактивный режим разработки с автоматической пересборкой
+**Что делает:**
+1. **Проверка:** Валидирует доступность Artifactory и Registry
+2. **Сборка:** Компилирует все GR плагины
+3. **Публикация:** Загружает JAR файлы в Artifactory
+4. **Обновление:** Обновляет Docker образ economy-api
 
-**Возможности**:
-- Автоматическое отслеживание изменений в коде
-- Быстрая сборка и развертывание
-- Мониторинг логов в реальном времени
-- Проверка здоровья сервиса
-- Перезапуск сервиса
+## 🎮 Плагины
 
-**Использование**:
+### GR Core Plugin (`gr-core-plugin/`)
+- **Назначение:** Базовая функциональность для всех GR плагинов
+- **Зависимости:** Bukkit API
+- **Публикация:** `org.owleebr:gr-core-plugin:1.0.0`
+
+### GR Player Plugin (`gr-player-plugin/`)
+- **Назначение:** Механики игроков (статы, способности)
+- **Зависимости:** `gr-core-plugin`
+- **Публикация:** `org.owleebr:gr-player-plugin:1.0.0`
+
+### GR Race Plugin (`gr-race-plugin/`)
+- **Назначение:** Система рас для RPG
+- **Зависимости:** `gr-core-plugin`
+- **Публикация:** `org.owleebr:gr-race-plugin:1.0.0`
+
+### Purpur Plugin (`plugin/purpur-plugin/`)
+- **Назначение:** Основной плагин сервера (экономика, команды)
+- **Зависимости:** `gr-core-plugin`, `gr-player-plugin`, `gr-race-plugin`
+- **Публикация:** `com.example:purpur-plugin:1.0.0`
+
+## 🏪 Сервисы
+
+### Economy API (`services/economy-api/`)
+- **Назначение:** REST API для экономики сервера
+- **Технологии:** Spring Boot, PostgreSQL, Redis
+- **Docker:** Автоматическая сборка и публикация
+- **Публикация:** `com.example:economy-api:1.0.0`
+
+### Artifactory
+- **Назначение:** Хранилище артефактов (плагины, JAR)
+- **Реализация:** Nginx + статические файлы
+- **Доступ:** NodePort 30002
+- **Структура:**
+  ```
+  /minecraft-plugins/org/owleebr/gr-core-plugin/1.0.0/
+  /minecraft-plugins/org/owleebr/gr-player-plugin/1.0.0/
+  /minecraft-plugins/org/owleebr/gr-race-plugin/1.0.0/
+  /minecraft-plugins/com/example/purpur-plugin/1.0.0/
+  /economy-api/com/example/economy-api/1.0.0/
+  ```
+
+## 🐳 Kubernetes особенности
+
+### Purpur Deployment
+- **Стратегия:** `Recreate` (сначала убить, потом создать)
+- **Persistence:** PVC для хранения мира
+- **preStop Hook:** Корректное сохранение мира перед остановкой
+- **Init Containers:** Автоматическая загрузка плагинов
+
+### Плагины
+- **Загрузка:** Через init-контейнер `plugins-init`
+- **Источник:** Artifactory (внутренний)
+- **Конфигурация:** `plugins.yaml` (декларативно)
+
+### Сеть
+- **Velocity:** NodePort 30000 (внешний доступ)
+- **Purpur:** ClusterIP (внутренний)
+- **Artifactory:** NodePort 30002 (разработка)
+- **Registry:** NodePort 30502 (Docker образы)
+
+## 🔄 Жизненный цикл разработки
+
+### 1. Разработка плагина
 ```bash
-./dev-economy-api.sh --watch     # Автоматическая разработка
-./dev-economy-api.sh --deploy    # Быстрое развертывание
-./dev-economy-api.sh --logs      # Просмотр логов
-./dev-economy-api.sh --health    # Проверка здоровья
+cd gr-core-plugin
+# Редактируем код
+./gradlew build
 ```
 
-## 🎯 Руководство по выбору скрипта
-
-| Случай использования | Рекомендуемый скрипт | Почему |
-|---------------------|---------------------|---------|
-| **Продакшн развертывание** | `deploy-economy-api.sh` | Простой, надежный, готов к продакшену |
-| **CI/CD пайплайн** | `deploy-economy-api.sh` | Минимальные зависимости, предсказуемость |
-| **Начальная инфраструктура** | `deploy.sh` (вызывает `deploy-economy-api.sh`) | Автоматизированное полное развертывание |
-| **Активная разработка** | `dev-economy-api.sh --watch` | Автоперезагрузка, комплексный мониторинг |
-| **Отладка проблем** | `dev-economy-api.sh --logs` | Мониторинг логов в реальном времени |
-| **Проверка здоровья** | `dev-economy-api.sh --health` | Детальная информация о здоровье |
-| **Быстрое тестирование** | `dev-economy-api.sh --deploy` | Быстрый цикл сборки и развертывания |
-
-## 🔄 Поток развертывания
-
-```
-deploy.sh
-    ├── Создание namespace
-    ├── Развертывание PostgreSQL
-    ├── Развертывание Redis
-    ├── Развертывание Registry
-    ├── deploy-economy-api.sh
-    │   ├── Gradle сборка ⭐ НОВОЕ!
-    │   ├── Docker образ
-    │   ├── Загрузка в registry
-    │   └── Kubernetes deployment
-    ├── Развертывание Velocity
-    └── Развертывание Purpur
-```
-
-## 🛠️ Обработка ошибок
-
-### Автоматическое восстановление
-- Kubernetes автоматически перезапускает упавшие поды
-- Health checks обеспечивают готовность сервисов
-- Rollout status проверяет успешность обновлений
-
-### Ручное восстановление
+### 2. Обновление на сервере
 ```bash
-# Проверка статуса
-kubectl get pods -n minecraft
-
-# Просмотр логов
-kubectl logs -n minecraft -l app.kubernetes.io/name=economy-api
-
-# Перезапуск сервиса
-./dev-economy-api.sh --restart
-
-# Полная очистка и перезапуск
-./deploy.sh --cleanup
+./scripts/update.sh --gr-core
 ```
 
-## 🧹 Заметки по очистке
+### 3. Тестирование
+- Подключаемся к серверу
+- Проверяем функциональность
+- При необходимости откатываемся
 
-### Удаленные файлы
-- `port-forward.sh` - заменен на NodePort архитектуру
-- `velocity.toml` - конфигурация управляется через Helm
-- `forwarding.secret` - больше не требуется
-- `.port-forward.pid` - автоматическое управление процессами
-- **`pom.xml`** - заменены на **`build.gradle`** ⭐ **ПЕРЕХОД НА GRADLE!**
-
-### Причины удаления
-- **port-forward** - антипаттерн, заменен на стабильный NodePort
-- **Ручная конфигурация** - заменена на Helm-управляемую
-- **Временные файлы** - автоматически управляются Kubernetes
-- **Maven** - заменен на **Gradle** для лучшей производительности и гибкости
-
-## 🔧 Конфигурация
-
-### Порт 30000
-Velocity настроен на фиксированный NodePort 30000 для стабильного доступа в OrbStack:
-```yaml
-service:
-  type: NodePort
-  port: 25565
-  nodePort: 30000  # Фиксированный порт для стабильности
-```
-
-### Автоматическое создание кошельков
-При входе игрока автоматически создается кошелек с 100 монетами:
-- API endpoint: `POST /api/economy/ensure-wallet/{userId}`
-- База данных: PostgreSQL таблица `wallets`
-- Кэширование: Redis на 5 минут
-
-## 📊 Мониторинг
-
-### Полезные команды
+### 4. Полное обновление
 ```bash
-# Статус всех компонентов
-kubectl get pods -n minecraft
-
-# Логи Velocity
-kubectl logs -n minecraft -l app.kubernetes.io/name=velocity
-
-# Логи Purpur
-kubectl logs -n minecraft -l app.kubernetes.io/name=purpur-shard
-
-# Логи Economy API
-kubectl logs -n minecraft -l app.kubernetes.io/name=economy-api
-
-# Статус сервисов
-kubectl get svc -n minecraft
-```
-
-## 🎮 Тестирование
-
-### Подключение к серверу
-1. Запустите `./deploy.sh`
-2. Подключитесь по адресу `localhost:30000`
-3. Используйте команду `/balance` для проверки экономики
-
-### API тестирование
-```bash
-# Создание кошелька
-curl -X POST "http://localhost:8080/api/economy/ensure-wallet/test-uuid"
-
-# Проверка баланса
-curl "http://localhost:8080/api/economy/balance/test-uuid"
-
-# Проверка здоровья
-curl "http://localhost:8080/actuator/health"
+./scripts/update.sh --all
 ```
 
 ## 🚨 Устранение неполадок
 
-### Сервер недоступен
+### Purpur не запускается
 ```bash
-# Проверьте статус подов
+# Проверить логи
+kubectl logs -n minecraft deployment/purpur-lobby-purpur-shard
+
+# Проверить PVC
+kubectl get pvc -n minecraft
+
+# Перезапустить
+kubectl rollout restart deployment/purpur-lobby-purpur-shard -n minecraft
+```
+
+### Плагины не загружаются
+```bash
+# Проверить логи init-контейнера
+kubectl logs -n minecraft deployment/purpur-lobby-purpur-shard -c plugins-init
+
+# Проверить Artifactory
+kubectl get svc artifactory -n minecraft
+curl http://localhost:30002/minecraft-plugins/
+```
+
+### Economy API недоступен
+```bash
+# Проверить логи
+kubectl logs -n minecraft deployment/economy-api
+
+# Проверить базу данных
+kubectl logs -n minecraft deployment/postgres
+```
+
+## 📚 Полезные команды
+
+### Мониторинг
+```bash
+# Статус всех сервисов
 kubectl get pods -n minecraft
 
-# Проверьте логи Velocity
-kubectl logs -n minecraft -l app.kubernetes.io/name=velocity
+# Логи Velocity
+kubectl logs -n minecraft deployment/velocity
 
-# Проверьте NodePort
-kubectl get svc velocity -n minecraft
+# Логи Purpur
+kubectl logs -n minecraft deployment/purpur-lobby-purpur-shard
+
+# Логи Economy API
+kubectl logs -n minecraft deployment/economy-api
 ```
 
-### Economy API не работает
+### Управление
 ```bash
-# Проверьте статус
-./dev-economy-api.sh --health
+# Перезапуск сервиса
+kubectl rollout restart deployment/[service-name] -n minecraft
 
-# Перезапустите сервис
-./dev-economy-api.sh --restart
+# Масштабирование
+kubectl scale deployment/[service-name] -n minecraft --replicas=2
 
-# Просмотрите логи
-./dev-economy-api.sh --logs
+# Просмотр конфигурации
+kubectl get configmap -n minecraft
 ```
 
-### Плагин не загружается
-```bash
-# Пересоберите и загрузите плагин
-./upload-plugin.sh --clean
+## 🎯 Лучшие практики
 
-# Проверьте логи Purpur
-kubectl logs -n minecraft -l app.kubernetes.io/name=purpur-shard
-```
+1. **Всегда используйте скрипты** - не делайте ручных изменений
+2. **При проблемах** - запускайте `./deploy.sh --cleanup`
+3. **Обновления плагинов** - используйте `./scripts/update.sh`
+4. **Мониторинг** - регулярно проверяйте логи сервисов
+5. **Бэкапы** - мир сохраняется в PVC автоматически
 
-## 📝 Лицензия
+## 🔗 Полезные ссылки
 
-Этот проект создан для демонстрации возможностей Kubernetes и Minecraft серверов.
+- **Velocity:** https://docs.papermc.io/velocity/
+- **Purpur:** https://purpurmc.org/
+- **Helm:** https://helm.sh/
+- **Kubernetes:** https://kubernetes.io/
 
-## 🤝 Поддержка
+---
 
-При возникновении проблем:
-1. Проверьте логи соответствующих компонентов
-2. Используйте `./deploy.sh --cleanup` для полной очистки
-3. Убедитесь, что все зависимости установлены
-4. Проверьте доступность Kubernetes кластера
+**Версия:** 2.0.0  
+**Дата:** Сентябрь 2025  
+**Автор:** GR Team

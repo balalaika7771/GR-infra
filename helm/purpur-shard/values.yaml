@@ -1,6 +1,6 @@
 image:
-  repository: itzg/minecraft-server
-  tag: java21
+  repository: josxha/minecraft-purpur
+  tag: 1.21.5
   pullPolicy: IfNotPresent
 
 version: "1.21.5"
@@ -13,14 +13,14 @@ service:
   headless: true
 
 jvm:
-  opts: "-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=75 -Dfile.encoding=UTF-8"
+  opts: "-Xms1g -Xmx3g -XX:+UseG1GC -XX:MaxGCPauseMillis=75 -Dfile.encoding=UTF-8"
 
 resources:
   requests:
-    cpu: "1"
+    cpu: "500m"
     memory: "2Gi"
   limits:
-    cpu: "2"
+    cpu: "1"
     memory: "4Gi"
 
 health:

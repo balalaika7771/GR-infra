@@ -1,0 +1,17 @@
+{{- if .Values.artifactory.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "artifactory.fullname" . }}-pvc
+  labels:
+    {{- include "artifactory.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.artifactory.persistence.size }}
+  {{- if .Values.artifactory.persistence.storageClass }}
+  storageClassName: {{ .Values.artifactory.persistence.storageClass }}
+  {{- end }}
+{{- end }}

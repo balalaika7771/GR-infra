@@ -1,0 +1,17 @@
+apiVersion: v2
+name: artifactory
+description: JFrog Artifactory for Minecraft plugins and economy-api
+type: application
+version: 0.1.0
+appVersion: "7.68.0"
+keywords:
+  - artifactory
+  - repository
+  - maven
+  - gradle
+home: https://jfrog.com/artifactory/
+sources:
+  - https://github.com/jfrog/artifactory
+maintainers:
+  - name: AI Assistant
+    email: ai@example.com

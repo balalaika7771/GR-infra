@@ -1,0 +1,92 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "artifactory.fullname" . }}-init
+  labels:
+    {{- include "artifactory.labels" . | nindent 4 }}
+spec:
+  template:
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: init-artifactory
+          image: curlimages/curl:latest
+          command: ['/bin/sh', '-c']
+          args:
+            - |
+              # Ждем запуска Artifactory
+              echo "Ожидание запуска Artifactory..."
+              while ! curl -s http://{{ include "artifactory.fullname" . }}:8081/artifactory/api/system/ping > /dev/null; do
+                echo "Artifactory еще не готов, ждем..."
+                sleep 10
+              done
+              
+              echo "Artifactory запущен, инициализируем репозитории..."
+              
+              # Создаем репозиторий minecraft-plugins
+              echo "Создаем репозиторий minecraft-plugins..."
+              curl -u admin:admin123 \
+                -X PUT \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "key": "minecraft-plugins",
+                  "rclass": "local",
+                  "packageType": "maven",
+                  "description": "Minecraft plugins repository"
+                }' \
+                http://{{ include "artifactory.fullname" . }}:8081/artifactory/api/repositories/minecraft-plugins
+              
+
+              # Создаем удаленный репозиторий Maven Central, чтобы проксировать плагины Maven через Artifactory
+              echo "Создаем remote репозиторий maven-central-remote..."
+              curl -u admin:admin123 \
+                -X PUT \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "key": "maven-central-remote",
+                  "rclass": "remote",
+                  "packageType": "maven",
+                  "url": "https://repo1.maven.org/maven2",
+                  "repoLayoutRef": "maven-2-default",
+                  "description": "Proxy for Maven Central",
+                  "handleReleases": true,
+                  "handleSnapshots": false,
+                  "maxUniqueSnapshots": 0
+                }' \
+                http://{{ include "artifactory.fullname" . }}:8081/artifactory/api/repositories/maven-central-remote
+
+              # Создаем виртуальный репозиторий, объединяющий локальный и remote
+              echo "Создаем virtual репозиторий maven-all..."
+              curl -u admin:admin123 \
+                -X PUT \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "key": "maven-all",
+                  "rclass": "virtual",
+                  "packageType": "maven",
+                  "repositories": ["minecraft-plugins", "maven-central-remote"],
+                  "defaultDeploymentRepo": "minecraft-plugins",
+                  "description": "Virtual repo aggregating local and Maven Central"
+                }' \
+                http://{{ include "artifactory.fullname" . }}:8081/artifactory/api/repositories/maven-all
+
+              # Создаем репозиторий economy-api
+              echo "Создаем репозиторий economy-api..."
+              curl -u admin:admin123 \
+                -X PUT \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "key": "economy-api",
+                  "rclass": "local",
+                  "packageType": "maven",
+                  "description": "Economy API service"
+                }' \
+                http://{{ include "artifactory.fullname" . }}:8081/artifactory/api/repositories/economy-api
+              
+              echo "Репозитории созданы успешно!"
+              
+              # Список репозиториев
+              echo "Доступные репозитории:"
+              curl -u admin:admin123 http://{{ include "artifactory.fullname" . }}:8081/artifactory/api/repositories
+      restartPolicy: OnFailure
+      backoffLimit: 3

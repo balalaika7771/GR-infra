@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "artifactory.fullname" . }}
+  labels:
+    {{- include "artifactory.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "artifactory.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "artifactory.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: nginx:alpine
+          imagePullPolicy: {{ .Values.artifactory.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: artifactory-data
+              mountPath: /usr/share/nginx/html
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+          resources:
+            {{- toYaml .Values.artifactory.resources | nindent 12 }}
+      volumes:
+        - name: artifactory-data
+          emptyDir: {}
+        - name: nginx-config
+          configMap:
+            name: {{ include "artifactory.fullname" . }}-nginx

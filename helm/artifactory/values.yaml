@@ -1,0 +1,51 @@
+artifactory:
+  name: artifactory
+  image:
+    repository: nginx
+    tag: "alpine"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: NodePort  # NodePort для внешнего доступа
+    port: 80        # Nginx HTTP port
+    nodePort: 30002
+  
+  ingress:
+    enabled: false
+  
+  persistence:
+    enabled: false  # Временно отключено для использования emptyDir
+    size: 10Gi
+    storageClass: ""
+  
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  
+  # Настройки для Minecraft плагинов
+  plugins:
+    repositories:
+      - name: minecraft-plugins
+        type: maven
+        description: "Minecraft plugins repository"
+      - name: economy-api
+        type: maven
+        description: "Economy API service"
+  
+  # Начальные настройки
+  config:
+    admin:
+      password: "admin123"
+    repositories:
+      minecraft-plugins:
+        type: maven
+        description: "Minecraft plugins repository"
+        url: "http://artifactory:8081/artifactory/minecraft-plugins"  # Изменено на http
+      economy-api:
+        type: maven
+        description: "Economy API service"
+        url: "http://artifactory:8081/artifactory/economy-api"  # Изменено на http

@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
 group = 'com.example'
@@ -10,10 +11,26 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
+// Значения по умолчанию для Artifactory (можно переопределить через -P)
+project.ext {
+    artifactoryUrl = project.findProperty('artifactory.url') ?: 'http://localhost:30002/artifactory'
+    artifactoryUser = project.findProperty('artifactory.user') ?: 'admin'
+    artifactoryPassword = project.findProperty('artifactory.password') ?: 'admin123'
+}
+
 repositories {
     mavenCentral()
     maven { url 'https://repo.papermc.io/repository/maven-public/' }
     maven { url 'https://repo.papermc.io/repository/maven-snapshots/' }
+    // Наш Artifactory (NodePort 30002)
+    maven {
+        url "${project.ext.artifactoryUrl}/minecraft-plugins"
+        allowInsecureProtocol = true
+        credentials {
+            username = project.ext.artifactoryUser
+            password = project.ext.artifactoryPassword
+        }
+    }
 }
 
 dependencies {
@@ -30,13 +47,7 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:2.0.9'
 }
 
-
-
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
-    options.compilerArgs += ['-parameters']
-}
-
+// Включаем зависимости в JAR
 jar {
     from {
         configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
@@ -51,6 +62,57 @@ jar {
     }
 }
 
+// Публикация в Artifactory
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            
+            groupId = project.group
+            artifactId = project.name
+            version = project.version
+            
+            pom {
+                name = 'Purpur Economy Plugin'
+                description = 'Minecraft economy plugin for Purpur server'
+                url = 'https://github.com/example/minecraft-economy-plugin'
+                
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://opensource.org/licenses/MIT'
+                    }
+                }
+                
+                developers {
+                    developer {
+                        id = 'ai-assistant'
+                        name = 'AI Assistant'
+                        email = 'ai@example.com'
+                    }
+                }
+            }
+        }
+    }
+    
+    repositories {
+        maven {
+            name = 'artifactory'
+            url = "${project.ext.artifactoryUrl}/minecraft-plugins"
+            allowInsecureProtocol = true
+            credentials {
+                username = project.ext.artifactoryUser
+                password = project.ext.artifactoryPassword
+            }
+        }
+    }
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-parameters']
+}
+
 // Задача для очистки
 task cleanAll(type: Delete) {
     delete 'build', 'target'
@@ -62,4 +124,19 @@ task buildFast {
     doLast {
         println "Плагин собран: ${jar.archiveFile.get()}"
     }
+}
+
+// Задача для публикации
+task publishToArtifactory {
+    dependsOn 'publishMavenPublicationToArtifactoryRepository'
+    doLast {
+        println "Плагин опубликован в Artifactory"
+    }
+}
+
+// Удобный алиас как в Maven: gradle deploy
+tasks.register('deploy') {
+    group = 'publishing'
+    description = 'Publish artifacts to Artifactory (alias for publish)'
+    dependsOn 'publish'
 }

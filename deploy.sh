@@ -127,6 +127,7 @@ cleanup() {
     helm uninstall redis -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
     helm uninstall postgres -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
     helm uninstall registry -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
+    helm uninstall artifactory -n $NAMESPACE --ignore-not-found=true 2>/dev/null || true
     success "Helm релизы удалены"
     
     # Ждем завершения удаления Helm релизов
@@ -167,7 +168,14 @@ cleanup() {
     # Очищаем Docker образы если они есть
     log "Очищаю Docker образы..."
     docker rmi localhost:30500/economy-api:latest 2>/dev/null || true
+    docker rmi localhost:30500/economy-api:dev-* 2>/dev/null || true
     docker rmi localhost:30500/economy-plugin:latest 2>/dev/null || true
+    docker rmi economy-api:dev-* 2>/dev/null || true
+    docker rmi economy-api:base 2>/dev/null || true
+    
+    # Очищаем временные файлы
+    log "Очищаю временные файлы..."
+    rm -f .economy-api-image 2>/dev/null || true
     
     echo ""
     echo "================================================================================"
@@ -199,6 +207,11 @@ deploy() {
     log "Installing Helm chart: registry"
     helm upgrade --install registry ./helm/registry -n "$NAMESPACE" --wait --timeout=180s
     success "Registry deployed"
+    
+    # Устанавливаем Artifactory
+    log "Installing Helm chart: artifactory"
+    helm upgrade --install artifactory ./helm/artifactory -n "$NAMESPACE" --wait --timeout=600s
+    success "Artifactory deployed"
     
     # Развертываем PostgreSQL
     log "Deploying PostgreSQL..."
@@ -269,7 +282,33 @@ deploy() {
         warning "NodePort not configured, check service: kubectl get svc velocity -n $NAMESPACE"
     fi
     
-    # Развертываем Purpur
+    # Публикуем плагины и собираем образ Economy API ПЕРЕД развертыванием
+    log "Publishing plugins and building Economy API image..."
+    if [ -f "./scripts/manage-plugins.sh" ]; then
+        log "Publishing plugins and JARs to Artifactory..."
+        ./scripts/manage-plugins.sh publish
+        success "Plugins and JARs published to Artifactory"
+        
+        log "Building and pushing Economy API Docker image..."
+        # Только сборка и push образа, без обновления deployment
+        TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
+        ARTIFACT_URL="http://host.docker.internal:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+        
+        docker build -f services/economy-api/Dockerfile \
+            --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
+            -t "localhost:30502/economy-api:$TAG" \
+            services/economy-api
+        
+        docker push "localhost:30502/economy-api:$TAG"
+        
+        # Сохраняем тег для использования в Helm
+        echo "$TAG" > .economy-api-image-tag
+        success "Economy API image built and pushed: $TAG"
+    else
+        warning "manage-plugins.sh not found, skipping plugin management"
+    fi
+    
+    # Развертываем Purpur (теперь плагины уже в Artifactory)
     log "Deploying Purpur shard..."
     helm upgrade --install purpur-lobby $HELM_DIR/purpur-shard \
         --namespace $NAMESPACE \
@@ -283,21 +322,63 @@ deploy() {
     kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=purpur-shard -n $NAMESPACE --timeout=300s
     success "Services ready"
     
-    # Первичная установка плагина в Purpur
-    log "Installing Minecraft plugin (initial deployment)..."
-    if ./upload-plugin.sh; then
-        success "Plugin installed"
+    # Развертываем economy-api через Helm с готовым образом
+    log "Deploying economy-api..."
+    if [ -f ".economy-api-image-tag" ]; then
+        IMAGE_TAG=$(cat .economy-api-image-tag)
+        log "Using pre-built image: localhost:30502/economy-api:$IMAGE_TAG"
+        helm upgrade --install economy-api $HELM_DIR/economy-api \
+            --namespace $NAMESPACE \
+            --set image.repository=localhost:30502/economy-api \
+            --set image.tag="$IMAGE_TAG" \
+            --set image.pullPolicy=Always \
+            --wait --timeout=600s
     else
-        error "Failed to install plugin. Check logs and retry."
-        exit 1
+        # Fallback если тег не найден
+        helm upgrade --install economy-api $HELM_DIR/economy-api \
+            --namespace $NAMESPACE \
+            --wait --timeout=600s
+    fi
+    success "economy-api deployed"
+    
+    # Ждем готовности economy-api
+    log "Waiting for economy-api readiness..."
+    kubectl wait --for=condition=ready pod -l app=economy-api -n $NAMESPACE --timeout=300s || {
+        warning "economy-api not ready, but continuing deployment"
+    }
+    
+    # Финальная проверка всех сервисов
+    log "Final verification of all services..."
+    local all_ready=true
+    
+    # Проверяем Velocity
+    if kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=velocity --field-selector=status.phase=Running | grep -q "1/1"; then
+        success "Velocity is running"
+    else
+        warning "Velocity may not be ready"
+        all_ready=false
     fi
     
-    # Развертываем economy-api через отдельный скрипт
-    log "Deploying economy-api..."
-    if ./deploy-economy-api.sh; then
-        success "economy-api deployed"
+    # Проверяем Purpur
+    if kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=purpur-shard --field-selector=status.phase=Running | grep -q "1/1"; then
+        success "Purpur is running"
     else
-        warning "Failed to deploy economy-api. Run ./deploy-economy-api.sh manually."
+        warning "Purpur may not be ready"
+        all_ready=false
+    fi
+    
+    # Проверяем economy-api
+    if kubectl get pods -n $NAMESPACE -l app=economy-api --field-selector=status.phase=Running | grep -q "1/1"; then
+        success "Economy API is running"
+    else
+        warning "Economy API may not be ready"
+        all_ready=false
+    fi
+    
+    if [ "$all_ready" = true ]; then
+        success "All core services are running"
+    else
+        warning "Some services may need time to become ready"
     fi
     
     success "Deployment completed successfully!"
@@ -327,12 +408,14 @@ deploy() {
     echo "  NEXT STEPS:"
     echo "    1. Check pod status: kubectl get pods -n $NAMESPACE"
     echo "    2. Connect to server: localhost:$NODE_PORT"
-    echo "    3. Upload plugin: ./upload-plugin.sh"
+    echo "    3. Economy API running automatically"
+    echo "    4. Plugins managed via: ./scripts/manage-plugins.sh"
     echo ""
     echo "  USEFUL COMMANDS:"
     echo "    kubectl logs -n $NAMESPACE -l app.kubernetes.io/name=velocity"
     echo "    kubectl logs -n $NAMESPACE -l app.kubernetes.io/name=purpur-shard"
     echo "    kubectl get svc velocity -n $NAMESPACE"
+    echo "    ./scripts/manage-plugins.sh help"
     echo "================================================================================"
     echo ""
 

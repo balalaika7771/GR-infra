@@ -10,7 +10,7 @@ service:
   port: 5432
 
 persistence:
-  enabled: true
+  enabled: false  # Временно отключено для использования emptyDir
   size: 5Gi
   storageClass: ""
 
