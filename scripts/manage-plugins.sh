@@ -76,12 +76,12 @@ check_docker_registry() {
 build_gr_plugins() {
     log_info "Сборка GR плагинов..."
     
-    # gr-core-plugin
+    # gr-core-plugin (сначала, так как от него зависят остальные)
     log_info "Сборка gr-core-plugin..."
     cd ../gr-core-plugin
     if [ -f "gradlew" ]; then
-        ./gradlew clean build
-        log_success "gr-core-plugin собран"
+        ./gradlew clean build publishToMavenLocal
+        log_success "gr-core-plugin собран и опубликован в локальный Maven"
     else
         log_error "Gradle wrapper не найден в gr-core-plugin"
         exit 1
@@ -178,7 +178,9 @@ publish_plugin() {
         local jar_file="build/libs/purpur-plugin-1.0.0.jar"
         if [ -f "$jar_file" ]; then
             kubectl exec -n "$NAMESPACE" deployment/artifactory -- mkdir -p /usr/share/nginx/html/minecraft-plugins/com/example/purpur-plugin/1.0.0
-            kubectl cp "$jar_file" minecraft/$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=artifactory -o jsonpath='{.items[0].metadata.name}'):/usr/share/nginx/html/minecraft-plugins/com/example/purpur-plugin/1.0.0/purpur-plugin-1.0.0.jar
+            local POD
+            POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=artifactory -o jsonpath='{.items[0].metadata.name}')
+            kubectl cp "$jar_file" "$NAMESPACE/$POD:/usr/share/nginx/html/minecraft-plugins/com/example/purpur-plugin/1.0.0/purpur-plugin-1.0.0.jar"
             log_success "Плагин загружен в Artifactory"
         else
             log_error "JAR файл не найден: $jar_file"
@@ -200,7 +202,9 @@ publish_economy_api() {
         local jar_file="build/libs/economy-api-1.0.0.jar"
         if [ -f "$jar_file" ]; then
             kubectl exec -n "$NAMESPACE" deployment/artifactory -- mkdir -p /usr/share/nginx/html/economy-api/com/example/economy-api/1.0.0
-            kubectl cp "$jar_file" minecraft/$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=artifactory -o jsonpath='{.items[0].metadata.name}'):/usr/share/nginx/html/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar
+            local POD
+            POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=artifactory -o jsonpath='{.items[0].metadata.name}')
+            kubectl cp "$jar_file" "$NAMESPACE/$POD:/usr/share/nginx/html/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
             log_success "economy-api загружен в Artifactory"
         else
             log_error "JAR файл не найден: $jar_file"
@@ -216,7 +220,7 @@ publish_economy_api() {
 update_economy_api_image() {
     log_info "Обновление образа economy-api..."
     local tag="1.0.0-$(date +%Y%m%d%H%M%S)"
-    local artifact_url="http://host.docker.internal:$ARTIFACTORY_PORT/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+    local artifact_url="http://$ARTIFACTORY_HOST:$ARTIFACTORY_PORT/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
     
     docker build -f services/economy-api/Dockerfile \
         --build-arg ARTIFACT_URL="$artifact_url" \
