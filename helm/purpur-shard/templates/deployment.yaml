@@ -43,16 +43,14 @@ spec:
             - name: plugins-config
               mountPath: /plugins-config
         - name: plugins-init
-          image: openjdk:21-slim
+          image: alpine:3.19
           command: ["/bin/sh"]
           args:
             - -c
             - |
               echo "Инициализация плагинов для Purpur..."
 
-              # Устанавливаем необходимые инструменты
-              apt-get update && apt-get install -y wget curl python3 python3-pip
-              pip3 install --no-cache-dir pyyaml
+
 
               # Создаем директорию для плагинов
               mkdir -p /data/plugins
@@ -64,8 +62,7 @@ spec:
                 exit 1
               fi
 
-              echo "Парсим plugins.yaml и загружаем плагины декларативно..."
-              # Простая реализация через shell и wget для избежания YAML проблем
+
               echo "Загружаем purpur-plugin из Artifactory..."
               wget -q -O "/data/plugins/purpur-plugin.jar" "http://artifactory/minecraft-plugins/com/example/purpur-plugin/1.0.0/purpur-plugin-1.0.0.jar"
               if [ $? -eq 0 ] && [ -s "/data/plugins/purpur-plugin.jar" ]; then
