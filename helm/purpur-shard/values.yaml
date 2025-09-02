@@ -40,7 +40,7 @@ server:
 persistence:
   enabled: true
   size: 10Gi
-  storageClass: "local-path"
+  storageClass: "hostpath"
   shared: true
 
 plugin:

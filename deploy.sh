@@ -244,7 +244,7 @@ deploy() {
     log "Deploying PostgreSQL..."
     helm upgrade --install postgres $HELM_DIR/postgres \
         --namespace $NAMESPACE \
-        --set persistence.storageClass=local-path \
+        --set persistence.storageClass=hostpath \
         --wait --timeout=600s
     success "PostgreSQL deployed"
     
@@ -349,7 +349,7 @@ deploy() {
     log "Deploying Purpur shard..."
     helm upgrade --install purpur-lobby $HELM_DIR/purpur-shard \
         --namespace $NAMESPACE \
-        --set persistence.storageClass=local-path \
+        --set persistence.storageClass=hostpath \
         --wait --timeout=600s
     success "Purpur deployed"
     
