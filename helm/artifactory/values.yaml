@@ -20,11 +20,11 @@ artifactory:
   
   resources:
     requests:
-      memory: "1Gi"
-      cpu: "500m"
+      memory: "256Mi"
+      cpu: "100m"
     limits:
-      memory: "2Gi"
-      cpu: "1000m"
+      memory: "512Mi"
+      cpu: "500m"
 
   # Allow scheduling on single-node clusters (tainted control-plane/master)
   tolerations:
