@@ -14,6 +14,12 @@ spec:
       labels:
         {{- include "artifactory.selectorLabels" . | nindent 8 }}
     spec:
+      tolerations:
+        {{- toYaml .Values.artifactory.tolerations | nindent 8 }}
+      {{- if .Values.artifactory.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.artifactory.nodeSelector | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: nginx:alpine

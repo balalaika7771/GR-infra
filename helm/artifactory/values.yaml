@@ -25,6 +25,18 @@ artifactory:
     limits:
       memory: "2Gi"
       cpu: "1000m"
+
+  # Allow scheduling on single-node clusters (tainted control-plane/master)
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+    - key: "node-role.kubernetes.io/master"
+      operator: "Exists"
+      effect: "NoSchedule"
+
+  # Optional: force schedule on control-plane node
+  nodeSelector: {}
   
   # Настройки для Minecraft плагинов
   plugins:
