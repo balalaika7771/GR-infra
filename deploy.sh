@@ -343,6 +343,27 @@ deploy() {
     
     # Публикуем ТОЛЬКО внутренние артефакты и собираем образ Economy API ПЕРЕД развертыванием
     log "Publishing internal artifacts (purpur-plugin, economy-api) and building Economy API image..."
+    
+    # Ждем готовности artifactory и его NodePort
+    log "Waiting for artifactory to be ready and reachable on NodePort..."
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=artifactory -n $NAMESPACE --timeout=300s || true
+    # Определяем IP ноды (InternalIP)
+    NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+    if [ -z "$NODE_IP" ]; then
+        NODE_IP=$(hostname -I | awk '{print $1}')
+    fi
+    if [ -z "$NODE_IP" ]; then
+        NODE_IP="127.0.0.1"
+    fi
+    # Проверяем доступность NodePort 30002
+    for i in $(seq 1 30); do
+        if curl -fsS "http://$NODE_IP:30002/" >/dev/null; then
+            success "artifactory reachable at http://$NODE_IP:30002"
+            break
+        fi
+        log "artifactory not reachable yet at http://$NODE_IP:30002 (attempt $i/30)"
+        sleep 2
+    done
     # Гарантируем наличие Java для gradle wrapper
     ensure_java
     # Определяем pod artifactory
@@ -401,17 +422,8 @@ deploy() {
     # 3) Сборка и push Docker-образа economy-api на локальный реестр
     log "Building and pushing Economy API Docker image..."
     TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
-    # Определяем HOST_IP для доступа к Artifactory внутри docker build
-    if command -v ip &> /dev/null; then
-        HOST_IP=$(ip route show default | awk '/default/ {print $3}' | head -1)
-        if [ -z "$HOST_IP" ]; then
-            HOST_IP="host.docker.internal"
-        fi
-    else
-        HOST_IP="host.docker.internal"
-    fi
-
-    ARTIFACT_URL="http://$HOST_IP:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+    # Для docker build используем IP ноды (NodePort)
+    ARTIFACT_URL="http://$NODE_IP:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
 
     docker build -f services/economy-api/Dockerfile \
         --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
