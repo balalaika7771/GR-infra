@@ -10,9 +10,12 @@ service:
   port: 5432
 
 persistence:
-  enabled: false  # Временно отключено для использования emptyDir
-  size: 5Gi
+  enabled: true
+  size: 10Gi
   storageClass: ""
+  hostPath:
+    path: "/var/lib/minecraft/postgres"
+    nodeName: ""
 
 resources:
   requests:

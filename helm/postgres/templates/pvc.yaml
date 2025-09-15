@@ -1,4 +1,45 @@
 {{- if .Values.persistence.enabled }}
+{{- if .Values.persistence.hostPath.path }}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "postgres.fullname" . }}-pv
+spec:
+  capacity:
+    storage: {{ .Values.persistence.size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  {{- if .Values.persistence.hostPath.nodeName }}
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - {{ .Values.persistence.hostPath.nodeName | quote }}
+  {{- end }}
+  hostPath:
+    path: {{ .Values.persistence.hostPath.path | quote }}
+    type: DirectoryOrCreate
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "postgres.fullname" . }}-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+  volumeName: {{ include "postgres.fullname" . }}-pv
+  storageClassName: ""
+{{- else }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -10,10 +51,13 @@ spec:
     - ReadWriteOnce
   {{- if .Values.persistence.storageClass }}
   storageClassName: {{ .Values.persistence.storageClass }}
+  {{- else }}
+  storageClassName: ""
   {{- end }}
   resources:
     requests:
       storage: {{ .Values.persistence.size }}
+{{- end }}
 {{- end }}
 
 
