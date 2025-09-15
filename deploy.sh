@@ -90,7 +90,11 @@ ensure_java() {
     log "Java не обнаружена. Устанавливаю OpenJDK 21..."
     if command -v apt-get &> /dev/null; then
         export DEBIAN_FRONTEND=noninteractive
-        apt-get update -y
+        apt-get update -y || {
+            warning "apt-get update завершился с ошибкой. Пробую удалить проблемный helm-репозиторий и повторить..."
+            rm -f /etc/apt/sources.list.d/helm-stable-debian.list 2>/dev/null || true
+            apt-get update -y
+        }
         apt-get install -y ca-certificates openjdk-21-jdk-headless
         update-ca-certificates || true
     else
