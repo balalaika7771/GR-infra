@@ -81,6 +81,42 @@ check_dependencies() {
     success "All dependencies verified"
 }
 
+# Безопасное применение Helm релиза с авто-очисткой зависших операций
+helm_safe_upgrade() {
+    local release="$1"
+    local chart="$2"
+    shift 2
+    local extra_args=("$@")
+
+    for attempt in 1 2; do
+        if helm upgrade --install "$release" "$chart" -n "$NAMESPACE" "${extra_args[@]}"; then
+            return 0
+        fi
+
+        # Проверяем, не завис ли релиз в pending-*
+        if helm status "$release" -n "$NAMESPACE" 2>/dev/null | grep -qiE 'pending-(install|upgrade|rollback)'; then
+            warning "Helm release '$release' застрял в pending. Выполняю принудительную очистку и повторю..."
+            # Мягкое удаление релиза без хуков
+            helm uninstall "$release" -n "$NAMESPACE" --no-hooks || true
+            # Удаляем возможные остатки метаданных helm
+            kubectl -n "$NAMESPACE" delete secret,configmap -l "owner=helm,name=$release" --ignore-not-found=true 2>/dev/null || true
+            # Удаляем застрявшие jobs/pods этого релиза
+            kubectl -n "$NAMESPACE" delete job -l "release=$release" --ignore-not-found=true 2>/dev/null || true
+            sleep 5
+            continue
+        fi
+
+        # Если причина не в pending, пробуем один раз принудительно переустановить
+        warning "Повторная попытка установки '$release' после очистки остатков"
+        helm uninstall "$release" -n "$NAMESPACE" --no-hooks || true
+        kubectl -n "$NAMESPACE" delete secret,configmap -l "owner=helm,name=$release" --ignore-not-found=true 2>/dev/null || true
+        sleep 3
+    done
+
+    error "Не удалось установить/обновить Helm release '$release'"
+    return 1
+}
+
 # Установка/проверка Java для сборки внутренних артефактов
 ensure_java() {
     if command -v java &> /dev/null; then
@@ -264,27 +300,24 @@ deploy() {
     
     # Устанавливаем Helm chart: registry
     log "Installing Helm chart: registry"
-    helm upgrade --install registry ./helm/registry -n "$NAMESPACE" --wait --timeout=180s
+    helm_safe_upgrade registry ./helm/registry --wait --timeout=180s
     success "Registry deployed"
     
     # Устанавливаем Artifactory
     log "Installing Helm chart: artifactory"
-    helm upgrade --install artifactory ./helm/artifactory -n "$NAMESPACE" --wait --timeout=600s
+    helm_safe_upgrade artifactory ./helm/artifactory --wait --timeout=600s
     success "Artifactory deployed"
     
     # Развертываем PostgreSQL
     log "Deploying PostgreSQL..."
-    helm upgrade --install postgres $HELM_DIR/postgres \
-        --namespace $NAMESPACE \
+    helm_safe_upgrade postgres $HELM_DIR/postgres \
         --set persistence.storageClass=hostpath \
         --wait --timeout=600s
     success "PostgreSQL deployed"
     
     # Развертываем Redis
     log "Deploying Redis..."
-    helm upgrade --install redis $HELM_DIR/redis \
-        --namespace $NAMESPACE \
-        --wait
+    helm_safe_upgrade redis $HELM_DIR/redis --wait
     success "Redis deployed"
     
     # Ждем готовности баз данных
@@ -323,9 +356,7 @@ deploy() {
     
     # Развертываем Velocity
     log "Deploying Velocity proxy..."
-    helm upgrade --install velocity $HELM_DIR/velocity \
-        --namespace $NAMESPACE \
-        --wait
+    helm_safe_upgrade velocity $HELM_DIR/velocity --wait
     success "Velocity deployed"
     
     # Настройка доступа к Velocity
@@ -438,8 +469,7 @@ deploy() {
     
     # Развертываем Purpur (теперь плагины уже в Artifactory)
     log "Deploying Purpur shard..."
-    helm upgrade --install purpur-lobby $HELM_DIR/purpur-shard \
-        --namespace $NAMESPACE \
+    helm_safe_upgrade purpur-lobby $HELM_DIR/purpur-shard \
         --set persistence.storageClass=hostpath \
         --wait --timeout=600s
     success "Purpur deployed"
@@ -455,17 +485,14 @@ deploy() {
     if [ -f ".economy-api-image-tag" ]; then
         IMAGE_TAG=$(cat .economy-api-image-tag)
         log "Using pre-built image: localhost:30502/economy-api:$IMAGE_TAG"
-        helm upgrade --install economy-api $HELM_DIR/economy-api \
-            --namespace $NAMESPACE \
+        helm_safe_upgrade economy-api $HELM_DIR/economy-api \
             --set image.repository=localhost:30502/economy-api \
             --set image.tag="$IMAGE_TAG" \
             --set image.pullPolicy=Always \
             --wait --timeout=600s
     else
         # Fallback если тег не найден
-        helm upgrade --install economy-api $HELM_DIR/economy-api \
-            --namespace $NAMESPACE \
-            --wait --timeout=600s
+        helm_safe_upgrade economy-api $HELM_DIR/economy-api --wait --timeout=600s
     fi
     success "economy-api deployed"
     
