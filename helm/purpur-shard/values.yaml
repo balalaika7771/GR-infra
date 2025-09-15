@@ -51,6 +51,13 @@ plugin:
   enabled: false
   name: "purpur-plugin-1.0.0.jar"
   config:
+    economy:
+      url: "http://economy-api:8080"
+      timeout: 5000
+    redis:
+      host: "redis"
+      port: 6379
+      timeout: 5000
 
 # Allow scheduling on single-node control-plane
 tolerations:
@@ -62,11 +69,4 @@ tolerations:
     effect: "NoSchedule"
 
 nodeSelector: {}
-    economy:
-      url: "http://economy-api:8080"
-      timeout: 5000
-    redis:
-      host: "redis"
-      port: 6379
-      timeout: 5000
 
