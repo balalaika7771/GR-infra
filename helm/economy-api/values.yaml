@@ -39,6 +39,15 @@ environments:
       limits:
         cpu: "500m"
         memory: "512Mi"
+  production:
+    replicas: 1
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
 
 # Allow scheduling on single-node control-plane
 tolerations:
@@ -50,13 +59,3 @@ tolerations:
     effect: "NoSchedule"
 
 nodeSelector: {}
-  
-  production:
-    replicas: 2
-    resources:
-      requests:
-        cpu: "500m"
-        memory: "512Mi"
-      limits:
-        cpu: "1000m"
-        memory: "1Gi"
