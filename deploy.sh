@@ -81,6 +81,34 @@ check_dependencies() {
     success "All dependencies verified"
 }
 
+# Установка/проверка Java для сборки внутренних артефактов
+ensure_java() {
+    if command -v java &> /dev/null; then
+        success "Java обнаружена: $(java -version 2>&1 | head -n1)"
+        return
+    fi
+    log "Java не обнаружена. Устанавливаю OpenJDK 21..."
+    if command -v apt-get &> /dev/null; then
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get install -y ca-certificates openjdk-21-jdk-headless
+        update-ca-certificates || true
+    else
+        error "apt-get не найден. Установите Java вручную или добавьте менеджер пакетов."
+        exit 1
+    fi
+    if ! command -v java &> /dev/null; then
+        error "Java не установилась корректно"
+        exit 1
+    fi
+    # Экспортируем JAVA_HOME если каталог известен
+    if [ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]; then
+        export JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+        export PATH="$JAVA_HOME/bin:$PATH"
+    fi
+    success "Java установлена: $(java -version 2>&1 | head -n1)"
+}
+
 # Показать справку
 show_help() {
     echo "================================================================================"
@@ -311,6 +339,8 @@ deploy() {
     
     # Публикуем ТОЛЬКО внутренние артефакты и собираем образ Economy API ПЕРЕД развертыванием
     log "Publishing internal artifacts (purpur-plugin, economy-api) and building Economy API image..."
+    # Гарантируем наличие Java для gradle wrapper
+    ensure_java
     # Определяем pod artifactory
     ARTIFACTORY_POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=artifactory -o jsonpath='{.items[0].metadata.name}') || ARTIFACTORY_POD=""
     if [ -z "$ARTIFACTORY_POD" ]; then
