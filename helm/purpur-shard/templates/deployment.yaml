@@ -54,69 +54,47 @@ spec:
           args:
             - -c
             - |
-              echo "Инициализация плагинов для Purpur..."
-
-
-
-              # Создаем директорию для плагинов
+              set -e
+              echo "Инициализация плагинов из plugins.yaml..."
+              apk add --no-cache curl wget yq >/dev/null 2>&1 || true
               mkdir -p /data/plugins
-
-              # Читаем конфигурацию плагинов
               PLUGINS_CONFIG="/plugins-config/plugins.yaml"
               if [ ! -f "$PLUGINS_CONFIG" ]; then
-                echo "Ошибка: plugins.yaml не найден"
-                exit 1
+                echo "Ошибка: plugins.yaml не найден"; exit 1
               fi
-
-
-              echo "Загружаем purpur-plugin из Artifactory..."
-              wget -q -O "/data/plugins/purpur-plugin.jar" "http://artifactory/minecraft-plugins/com/example/purpur-plugin/1.0.0/purpur-plugin-1.0.0.jar"
-              if [ $? -eq 0 ] && [ -s "/data/plugins/purpur-plugin.jar" ]; then
-                echo "✓ purpur-plugin загружен"
-              else
-                echo "✗ Ошибка загрузки purpur-plugin"
-                exit 1
-              fi
-              
-              echo "Загружаем gr-core-plugin из Artifactory..."
-              wget -q -O "/data/plugins/gr-core-plugin.jar" "http://artifactory/minecraft-plugins/org/owleebr/gr-core-plugin/1.0.0/gr-core-plugin-1.0.0.jar"
-              if [ $? -eq 0 ] && [ -s "/data/plugins/gr-core-plugin.jar" ]; then
-                echo "✓ gr-core-plugin загружен"
-              else
-                echo "✗ Ошибка загрузки gr-core-plugin"
-                exit 1
-              fi
-              
-              echo "Загружаем gr-player-plugin из Artifactory..."
-              wget -q -O "/data/plugins/gr-player-plugin.jar" "http://artifactory/minecraft-plugins/org/owleebr/gr-player-plugin/1.0.0/gr-player-plugin-1.0.0.jar"
-              if [ $? -eq 0 ] && [ -s "/data/plugins/gr-player-plugin.jar" ]; then
-                echo "✓ gr-player-plugin загружен"
-              else
-                echo "✗ Ошибка загрузки gr-player-plugin"
-                exit 1
-              fi
-              
-              echo "Загружаем gr-race-plugin из Artifactory..."
-              wget -q -O "/data/plugins/gr-race-plugin.jar" "http://artifactory/minecraft-plugins/org/owleebr/gr-race-plugin/1.0.0/gr-race-plugin-1.0.0.jar"
-              if [ $? -eq 0 ] && [ -s "/data/plugins/gr-race-plugin.jar" ]; then
-                echo "✓ gr-race-plugin загружен"
-              else
-                echo "✗ Ошибка загрузки gr-race-plugin"
-                exit 1
-              fi
-              
-              echo "Загружаем ProtocolLib..."
-              wget -q -O "/data/plugins/ProtocolLib.jar" "https://github.com/dmulloy2/ProtocolLib/releases/download/5.4.0/ProtocolLib.jar"
-              if [ $? -eq 0 ] && [ -s "/data/plugins/ProtocolLib.jar" ]; then
-                echo "✓ ProtocolLib загружен"
-              else
-                echo "✗ Ошибка загрузки ProtocolLib"
-                exit 1
-              fi
-
-              # Диагностика
-              echo "Проверяем загруженные плагины:"
-              ls -la /data/plugins/ || true
+              download() {
+                URL="$1"; OUT="$2"
+                echo "→ $URL"
+                wget -q -O "$OUT" "$URL" || { echo "✗ Ошибка: $URL"; exit 1; }
+                [ -s "$OUT" ] || { echo "✗ Пустой файл: $OUT"; exit 1; }
+                echo "✓ $OUT"
+              }
+              COUNT=$(yq '.plugins | length' "$PLUGINS_CONFIG")
+              i=0
+              while [ "$i" -lt "$COUNT" ]; do
+                NAME=$(yq -r ".plugins[$i].name" "$PLUGINS_CONFIG")
+                SRC=$(yq -r ".plugins[$i].source" "$PLUGINS_CONFIG")
+                if [ "$SRC" = "artifactory" ]; then
+                  REPO=$(yq -r ".plugins[$i].repository" "$PLUGINS_CONFIG")
+                  GROUP=$(yq -r ".plugins[$i].groupId" "$PLUGINS_CONFIG")
+                  ART=$(yq -r ".plugins[$i].artifactId" "$PLUGINS_CONFIG")
+                  VER=$(yq -r ".plugins[$i].version" "$PLUGINS_CONFIG")
+                  GP=$(echo "$GROUP" | tr '.' '/')
+                  URL="http://artifactory/$REPO/$GP/$ART/$VER/$ART-$VER.jar"
+                  OUT="/data/plugins/${ART}.jar"
+                  download "$URL" "$OUT"
+                elif [ "$SRC" = "url" ]; then
+                  URL=$(yq -r ".plugins[$i].url" "$PLUGINS_CONFIG")
+                  BASENAME=$(basename "$URL")
+                  OUT="/data/plugins/${NAME:-$BASENAME}"
+                  download "$URL" "$OUT"
+                else
+                  echo "Пропуск неизвестного source: $SRC"
+                fi
+                i=$((i+1))
+              done
+              echo "Плагины в /data/plugins:"
+              ls -la /data/plugins || true
           volumeMounts:
             - name: world
               mountPath: /data
