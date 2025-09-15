@@ -1,0 +1,56 @@
+name: Deploy infrastructure
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - '**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to perform"
+        required: true
+        default: "deploy"
+        type: choice
+        options:
+          - deploy
+          - cleanup
+
+concurrency:
+  group: infra-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Upload repo to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: "."
+          target: "/opt/infra"
+
+      - name: Run deploy on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            set -e
+            cd /opt/infra
+            chmod +x deploy.sh || true
+            chmod +x repo/deploy.sh || true
+            if [ "${{ github.event.inputs.action }}" = "cleanup" ]; then
+              if [ -f ./deploy.sh ]; then ./deploy.sh --cleanup; else ./repo/deploy.sh --cleanup; fi
+            else
+              if [ -f ./deploy.sh ]; then ./deploy.sh; else ./repo/deploy.sh; fi
+            fi
+
+

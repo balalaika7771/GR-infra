@@ -309,41 +309,86 @@ deploy() {
         warning "NodePort not configured, check service: kubectl get svc velocity -n $NAMESPACE"
     fi
     
-    # Публикуем плагины и собираем образ Economy API ПЕРЕД развертыванием
-    log "Publishing plugins and building Economy API image..."
-    if [ -f "./scripts/manage-plugins.sh" ]; then
-        log "Publishing plugins and JARs to Artifactory..."
-        ./scripts/manage-plugins.sh publish
-        success "Plugins and JARs published to Artifactory"
-        
-        log "Building and pushing Economy API Docker image..."
-        # Только сборка и push образа, без обновления deployment
-        TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
-        # Автоматически определяем IP хоста для WSL2 совместимости
-        if command -v ip &> /dev/null; then
-            HOST_IP=$(ip route show default | awk '/default/ {print $3}' | head -1)
-            if [ -z "$HOST_IP" ]; then
-                HOST_IP="host.docker.internal"
+    # Публикуем ТОЛЬКО внутренние артефакты и собираем образ Economy API ПЕРЕД развертыванием
+    log "Publishing internal artifacts (purpur-plugin, economy-api) and building Economy API image..."
+    # Определяем pod artifactory
+    ARTIFACTORY_POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=artifactory -o jsonpath='{.items[0].metadata.name}') || ARTIFACTORY_POD=""
+    if [ -z "$ARTIFACTORY_POD" ]; then
+        error "Artifactory pod not found in namespace $NAMESPACE"
+        exit 1
+    fi
+
+    # 1) purpur-plugin (внутренний)
+    log "Building and publishing purpur-plugin..."
+    if [ -d "plugin/purpur-plugin" ]; then
+        pushd plugin/purpur-plugin >/dev/null
+        if [ -f "gradlew" ]; then
+            chmod +x gradlew || true
+            ./gradlew clean build
+            PLUGIN_JAR="build/libs/purpur-plugin-1.0.0.jar"
+            if [ -f "$PLUGIN_JAR" ]; then
+                kubectl exec -n "$NAMESPACE" "$ARTIFACTORY_POD" -- mkdir -p /usr/share/nginx/html/minecraft-plugins/com/example/purpur-plugin/1.0.0
+                kubectl cp "$PLUGIN_JAR" "$NAMESPACE/$ARTIFACTORY_POD:/usr/share/nginx/html/minecraft-plugins/com/example/purpur-plugin/1.0.0/purpur-plugin-1.0.0.jar"
+                success "purpur-plugin published to Artifactory"
+            else
+                warning "purpur-plugin jar not found: $PLUGIN_JAR"
             fi
         else
+            warning "Gradle wrapper not found for purpur-plugin"
+        fi
+        popd >/dev/null
+    else
+        warning "Directory plugin/purpur-plugin not found, skipping"
+    fi
+
+    # 2) economy-api (внутренний)
+    log "Building and publishing economy-api JAR..."
+    if [ -d "services/economy-api" ]; then
+        pushd services/economy-api >/dev/null
+        if [ -f "gradlew" ]; then
+            chmod +x gradlew || true
+            ./gradlew clean build
+            ECONOMY_JAR="build/libs/economy-api-1.0.0.jar"
+            if [ -f "$ECONOMY_JAR" ]; then
+                kubectl exec -n "$NAMESPACE" "$ARTIFACTORY_POD" -- mkdir -p /usr/share/nginx/html/economy-api/com/example/economy-api/1.0.0
+                kubectl cp "$ECONOMY_JAR" "$NAMESPACE/$ARTIFACTORY_POD:/usr/share/nginx/html/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+                success "economy-api JAR published to Artifactory"
+            else
+                warning "economy-api jar not found: $ECONOMY_JAR"
+            fi
+        else
+            warning "Gradle wrapper not found for economy-api"
+        fi
+        popd >/dev/null
+    else
+        warning "Directory services/economy-api not found, skipping"
+    fi
+
+    # 3) Сборка и push Docker-образа economy-api на локальный реестр
+    log "Building and pushing Economy API Docker image..."
+    TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
+    # Определяем HOST_IP для доступа к Artifactory внутри docker build
+    if command -v ip &> /dev/null; then
+        HOST_IP=$(ip route show default | awk '/default/ {print $3}' | head -1)
+        if [ -z "$HOST_IP" ]; then
             HOST_IP="host.docker.internal"
         fi
-        
-        ARTIFACT_URL="http://$HOST_IP:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
-        
-        docker build -f services/economy-api/Dockerfile \
-            --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
-            -t "localhost:30502/economy-api:$TAG" \
-            services/economy-api
-        
-        docker push "localhost:30502/economy-api:$TAG"
-        
-        # Сохраняем тег для использования в Helm
-        echo "$TAG" > .economy-api-image-tag
-        success "Economy API image built and pushed: $TAG"
     else
-        warning "manage-plugins.sh not found, skipping plugin management"
+        HOST_IP="host.docker.internal"
     fi
+
+    ARTIFACT_URL="http://$HOST_IP:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+
+    docker build -f services/economy-api/Dockerfile \
+        --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
+        -t "localhost:30502/economy-api:$TAG" \
+        services/economy-api
+
+    docker push "localhost:30502/economy-api:$TAG"
+
+    # Сохраняем тег для использования в Helm
+    echo "$TAG" > .economy-api-image-tag
+    success "Economy API image built and pushed: $TAG"
     
     # Развертываем Purpur (теперь плагины уже в Artifactory)
     log "Deploying Purpur shard..."
