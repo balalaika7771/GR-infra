@@ -12,3 +12,12 @@ persistence:
   enabled: false
 
 
+# Allow scheduling on single-node clusters (tainted control-plane/master)
+tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"
+  - key: "node-role.kubernetes.io/master"
+    operator: "Exists"
+    effect: "NoSchedule"
+
