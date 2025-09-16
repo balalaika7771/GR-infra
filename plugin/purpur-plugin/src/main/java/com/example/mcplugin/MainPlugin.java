@@ -4,6 +4,7 @@ import com.example.mcplugin.api.ExtendedBackendClient;
 import com.example.mcplugin.commands.DemoCommands;
 import com.example.mcplugin.config.PluginConfig;
 import com.example.mcplugin.listeners.PlayerJoinListener;
+import com.example.mcplugin.listeners.ResourcePackListener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
@@ -26,7 +27,7 @@ public class MainPlugin extends JavaPlugin {
         registerCommands();
         
         // Регистрируем слушатели событий
-        registerListeners();
+        registerListeners(config);
         
         getLogger().info("Economy plugin enabled successfully!");
     }
@@ -38,9 +39,12 @@ public class MainPlugin extends JavaPlugin {
         getCommand("transfer").setExecutor(demoCommands);
     }
     
-    private void registerListeners() {
+    private void registerListeners(PluginConfig config) {
         var playerJoinListener = new PlayerJoinListener(this, backendClient);
         getServer().getPluginManager().registerEvents(playerJoinListener, this);
+
+        var resourcePackListener = new ResourcePackListener(this, config);
+        getServer().getPluginManager().registerEvents(resourcePackListener, this);
     }
     
     @Override
