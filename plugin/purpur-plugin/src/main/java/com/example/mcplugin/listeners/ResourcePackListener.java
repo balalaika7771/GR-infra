@@ -1,7 +1,6 @@
 package com.example.mcplugin.listeners;
 
 import com.example.mcplugin.config.PluginConfig;
-import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -36,16 +35,14 @@ public class ResourcePackListener implements Listener {
         Player player = event.getPlayer();
 
         boolean required = config.isResourcePackRequired();
-        Component prompt = Component.text(config.getResourcePackPrompt());
         String sha1 = config.getResourcePackSha1();
 
         try {
-            if (sha1 != null && !sha1.isBlank()) {
-                player.setResourcePack(url, sha1, required, prompt);
-            } else {
-                // Без SHA1 тоже допустимо, но хуже кэш
-                player.setResourcePack(url, required, prompt);
+            // Используем сигнатуру (String url, String sha1, boolean required)
+            if (sha1 == null) {
+                sha1 = "";
             }
+            player.setResourcePack(url, sha1, required);
             logger.info("Отправлен ресурс-пак игроку " + player.getName());
         } catch (Throwable t) {
             logger.warning("Не удалось отправить ресурс-пак игроку " + player.getName() + ": " + t.getMessage());
@@ -60,13 +57,13 @@ public class ResourcePackListener implements Listener {
             case DECLINED -> {
                 logger.info("Игрок " + player.getName() + " отклонил ресурс-пак");
                 if (required) {
-                    player.kick(Component.text(config.getResourcePackKickMessage()));
+                    player.kickPlayer(config.getResourcePackKickMessage());
                 }
             }
             case FAILED_DOWNLOAD -> {
                 logger.info("У игрока " + player.getName() + " не удалось скачать ресурс-пак");
                 if (required) {
-                    player.kick(Component.text(config.getResourcePackKickMessage()));
+                    player.kickPlayer(config.getResourcePackKickMessage());
                 }
             }
             case SUCCESSFULLY_LOADED -> logger.info("Игрок " + player.getName() + " успешно загрузил ресурс-пак");
