@@ -16,13 +16,13 @@ data:
         groupId: "com.example"
         artifactId: "purpur-plugin"
         
-      # # GR плагины
-      # - name: "gr-core-plugin"
-      #   version: "1.0.0"
-      #   source: "artifactory"
-      #   repository: "minecraft-plugins"
-      #   groupId: "org.owleebr"
-      #   artifactId: "gr-core-plugin"
+      # GR плагины
+      - name: "gr-core-plugin"
+        version: "1.0.0"
+        source: "artifactory"
+        repository: "minecraft-plugins"
+        groupId: "org.owleebr"
+        artifactId: "gr-core-plugin"
         
       # - name: "gr-player-plugin"
       #   version: "1.0.0"

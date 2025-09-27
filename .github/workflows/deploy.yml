@@ -44,6 +44,7 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             set -e
+            export KUBECONFIG=/etc/kubernetes/admin.conf
             cd /opt/infra
             chmod +x deploy.sh || true
             chmod +x repo/deploy.sh || true
