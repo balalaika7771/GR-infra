@@ -57,7 +57,8 @@ spec:
               set -e
               echo "Инициализация плагинов из plugins.yaml..."
               apk add --no-cache curl wget yq >/dev/null 2>&1 || true
-              echo "nameserver 8.8.8.8" > /etc/resolv.conf
+              echo "nameserver 10.96.0.10" > /etc/resolv.conf
+              echo "nameserver 8.8.8.8" >> /etc/resolv.conf
               echo "nameserver 8.8.4.4" >> /etc/resolv.conf
               mkdir -p /data/plugins
               PLUGINS_CONFIG="/plugins-config/plugins.yaml"
@@ -82,13 +83,18 @@ spec:
                   ART=$(yq -r ".plugins[$i].artifactId" "$PLUGINS_CONFIG")
                   VER=$(yq -r ".plugins[$i].version" "$PLUGINS_CONFIG")
                   GP=$(echo "$GROUP" | tr '.' '/')
-                  URL="http://artifactory/$REPO/$GP/$ART/$VER/$ART-$VER.jar"
+                  URL="http://artifactory.minecraft.svc.cluster.local/$REPO/$GP/$ART/$VER/$ART-$VER.jar"
                   OUT="/data/plugins/${ART}.jar"
                   download "$URL" "$OUT"
                 elif [ "$SRC" = "url" ]; then
                   URL=$(yq -r ".plugins[$i].url" "$PLUGINS_CONFIG")
                   BASENAME=$(basename "$URL")
-                  OUT="/data/plugins/${NAME:-$BASENAME}"
+                  # Если файл не имеет расширения .jar, добавляем его
+                  if [[ "$BASENAME" != *.jar ]]; then
+                    OUT="/data/plugins/${NAME:-$BASENAME}.jar"
+                  else
+                    OUT="/data/plugins/${NAME:-$BASENAME}"
+                  fi
                   download "$URL" "$OUT"
                 else
                   echo "Пропуск неизвестного source: $SRC"
