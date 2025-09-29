@@ -1,37 +1,17 @@
-# Multi-stage build для поддержки как JAR, так и native image
-FROM ghcr.io/graalvm/graalvm-community:21-java21 AS graalvm
+FROM openjdk:21-jdk-slim
 
-# Устанавливаем native-image
-RUN gu install native-image
-
+ARG ARTIFACT_URL
 WORKDIR /app
 
-# Копируем исходный код
-COPY . .
-
-# Собираем native image
-RUN ./gradlew nativeCompile --no-daemon
-
-# Финальный образ с native binary
-FROM ubuntu:22.04
-
-# Устанавливаем необходимые библиотеки для native image
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libc6 \
-    libstdc++6 \
-    zlib1g \
-    curl \
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-
-# Копируем native binary
-COPY --from=graalvm /app/build/native/nativeCompile/economy-api /app/economy-api
-
-# Делаем исполняемым
-RUN chmod +x /app/economy-api
+# Скачиваем JAR напрямую из репозитория артефактов во время сборки образа
+RUN test -n "$ARTIFACT_URL" || (echo "ARTIFACT_URL build-arg is required" && exit 1)
+RUN echo "Downloading JAR from $ARTIFACT_URL" \
+    && curl -fsSL "$ARTIFACT_URL" -o app.jar \
+    && test -s app.jar
 
 EXPOSE 8080
 
-# Запускаем native binary (значительно быстрее запуск)
-ENTRYPOINT ["/app/economy-api"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -11,11 +11,11 @@ service:
 
 resources:
   requests:
-    cpu: "50m"      # Native image требует меньше CPU
-    memory: "128Mi" # Native image требует значительно меньше памяти
+    cpu: "150m"
+    memory: "512Mi"
   limits:
-    cpu: "100m"
-    memory: "256Mi" # Native image использует ~50-100MB памяти
+    cpu: "200m"
+    memory: "1024Mi"
 
 env:
   SPRING_PROFILES_ACTIVE: "kubernetes"
@@ -43,11 +43,11 @@ environments:
     replicas: 1
     resources:
       requests:
-        cpu: "100m"     # Native image эффективнее
-        memory: "256Mi" # Native image использует меньше памяти
+        cpu: "500m"
+        memory: "512Mi"
       limits:
-        cpu: "200m"
-        memory: "512Mi" # Native image редко превышает 200MB
+        cpu: "1000m"
+        memory: "1Gi"
 
 # Allow scheduling on single-node control-plane
 tolerations:

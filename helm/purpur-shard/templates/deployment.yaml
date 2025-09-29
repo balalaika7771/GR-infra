@@ -68,17 +68,9 @@ spec:
               download() {
                 URL="$1"; OUT="$2"
                 echo "→ $URL"
-                # Удаляем существующий файл/директорию если есть
-                rm -rf "$OUT" 2>/dev/null || true
-                # Используем curl вместо wget для более надежного скачивания
-                curl -fsSL -o "$OUT" "$URL" || { echo "✗ Ошибка: $URL"; exit 1; }
-                # Проверяем что это файл и не пустой
-                if [ -f "$OUT" ] && [ -s "$OUT" ]; then
-                  echo "✓ $OUT"
-                else
-                  echo "✗ Пустой файл: $OUT"
-                  exit 1
-                fi
+                wget -q -O "$OUT" "$URL" || { echo "✗ Ошибка: $URL"; exit 1; }
+                [ -s "$OUT" ] || { echo "✗ Пустой файл: $OUT"; exit 1; }
+                echo "✓ $OUT"
               }
               COUNT=$(yq '.plugins | length' "$PLUGINS_CONFIG")
               i=0
