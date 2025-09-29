@@ -3,6 +3,7 @@ plugins {
     id 'org.springframework.boot' version '3.2.0'
     id 'io.spring.dependency-management' version '1.1.4'
     id 'maven-publish'
+    id 'org.graalvm.buildtools.native' version '0.9.28'
 }
 
 // Значения по умолчанию для Artifactory (можно переопределить через -P)
@@ -17,6 +18,27 @@ version = '1.0.0'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
+}
+
+// GraalVM Native Image конфигурация
+graalvmNative {
+    binaries {
+        main {
+            imageName = 'economy-api'
+            mainClass = 'com.example.economy.EconomyApiApplication'
+            buildArgs.addAll([
+                '--no-fallback',
+                '--install-exit-handlers',
+                '--enable-monitoring=heapdump,jfr',
+                '--enable-url-protocols=http,https',
+                '--initialize-at-build-time=org.slf4j.LoggerFactory,org.slf4j.impl.StaticLoggerBinder',
+                '--initialize-at-run-time=io.netty.util.internal.logging.Log4JLoggerFactory,io.netty.handler.ssl.JdkNpnApplicationProtocolNegotiator',
+                '--trace-class-initialization=org.springframework.core.io.VfsUtils',
+                '--trace-class-initialization=org.springframework.core.io.support.VfsPatternUtils',
+                '--trace-class-initialization=org.springframework.core.io.support.PathMatchingResourcePatternResolver'
+            ])
+        }
+    }
 }
 
 repositories {
@@ -121,4 +143,24 @@ tasks.register('deploy') {
     group = 'publishing'
     description = 'Publish artifacts to Artifactory (alias for publish)'
     dependsOn 'publish'
+}
+
+// Задача для сборки native image
+tasks.register('buildNative') {
+    group = 'build'
+    description = 'Build GraalVM Native Image for faster startup'
+    dependsOn 'nativeCompile'
+    doLast {
+        println "Native image built: build/native/nativeCompile/economy-api"
+    }
+}
+
+// Задача для сборки и публикации native image
+tasks.register('publishNative') {
+    group = 'publishing'
+    description = 'Build and publish native image to Artifactory'
+    dependsOn 'buildNative', 'publishToArtifactory'
+    doLast {
+        println "Native image published to Artifactory"
+    }
 }
