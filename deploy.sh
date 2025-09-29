@@ -427,12 +427,15 @@ deploy() {
         warning "Directory plugin/purpur-plugin not found, skipping"
     fi
 
-    # 2) economy-api (внутренний)
-    log "Building and publishing economy-api JAR..."
+    # 2) economy-api (внутренний) - с поддержкой native image
+    log "Building and publishing economy-api (JAR + Native Image)..."
     if [ -d "services/economy-api" ]; then
         pushd services/economy-api >/dev/null
         if [ -f "gradlew" ]; then
             chmod +x gradlew || true
+            
+            # Собираем обычный JAR
+            log "Building economy-api JAR..."
             ./gradlew clean build
             ECONOMY_JAR="build/libs/economy-api-1.0.0.jar"
             if [ -f "$ECONOMY_JAR" ]; then
@@ -442,6 +445,17 @@ deploy() {
             else
                 warning "economy-api jar not found: $ECONOMY_JAR"
             fi
+            
+            # Собираем native image (если доступен GraalVM)
+            log "Building economy-api Native Image (AOT compilation)..."
+            if command -v native-image >/dev/null 2>&1; then
+                ./gradlew buildNative --no-daemon || {
+                    warning "Native image build failed, falling back to JAR"
+                }
+                success "economy-api Native Image built (faster startup)"
+            else
+                log "GraalVM not available, using JAR build"
+            fi
         else
             warning "Gradle wrapper not found for economy-api"
         fi
@@ -450,16 +464,25 @@ deploy() {
         warning "Directory services/economy-api not found, skipping"
     fi
 
-    # 3) Сборка и push Docker-образа economy-api на локальный реестр
-    log "Building and pushing Economy API Docker image..."
+    # 3) Сборка и push Docker-образа economy-api на локальный реестр (с native image)
+    log "Building and pushing Economy API Docker image (with Native Image)..."
     TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
-    # Для docker build используем IP ноды (NodePort)
-    ARTIFACT_URL="http://$NODE_IP:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
-
-    docker build -f services/economy-api/Dockerfile \
-        --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
-        -t "localhost:30502/economy-api:$TAG" \
-        services/economy-api
+    
+    # Проверяем, есть ли native image
+    if [ -f "services/economy-api/build/native/nativeCompile/economy-api" ]; then
+        log "Using Native Image build (faster startup)"
+        docker build -f services/economy-api/Dockerfile \
+            -t "localhost:30502/economy-api:$TAG" \
+            services/economy-api
+    else
+        log "Using JAR build (fallback)"
+        # Для docker build используем IP ноды (NodePort)
+        ARTIFACT_URL="http://$NODE_IP:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+        docker build -f services/economy-api/Dockerfile \
+            --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
+            -t "localhost:30502/economy-api:$TAG" \
+            services/economy-api
+    fi
 
     docker push "localhost:30502/economy-api:$TAG"
 
