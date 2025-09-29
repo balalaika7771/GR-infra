@@ -1,5 +1,5 @@
 # Multi-stage build для поддержки как JAR, так и native image
-FROM ghcr.io/graalvm/graalvm-community:21 AS graalvm
+FROM ghcr.io/graalvm/graalvm-community:21-java21 AS graalvm
 
 # Устанавливаем native-image
 RUN gu install native-image
