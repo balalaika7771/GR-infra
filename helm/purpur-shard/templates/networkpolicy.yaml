@@ -6,7 +6,7 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: {{ include "purpur-shard.name" . }}
-  policyTypes: [Ingress]
+  policyTypes: [Ingress, Egress]
   ingress:
     - from:
         - podSelector: {}
@@ -15,5 +15,7 @@ spec:
           port: 25565
         - protocol: TCP
           port: {{ .Values.health.port }}
+  egress:
+    - {} # Разрешить весь исходящий трафик
 
 

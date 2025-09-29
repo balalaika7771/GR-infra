@@ -6,11 +6,13 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: {{ include "velocity.name" . }}
-  policyTypes: [Ingress]
+  policyTypes: [Ingress, Egress]
   ingress:
     - from: []  # внешний трафик через Service L4
       ports:
         - protocol: TCP
           port: 25565
+  egress:
+    - {} # Разрешить весь исходящий трафик
 
 
