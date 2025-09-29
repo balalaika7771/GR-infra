@@ -1,5 +1,5 @@
-# Multi-stage build для поддержки как JAR, так и native image
-FROM ghcr.io/graalvm/graalvm-community:21 AS graalvm
+# Multi-stage build для GraalVM Native Image
+FROM ghcr.io/graalvm/graalvm-community:21-java21 AS graalvm
 
 # Устанавливаем native-image
 RUN gu install native-image
@@ -9,7 +9,7 @@ WORKDIR /app
 # Копируем исходный код
 COPY . .
 
-# Собираем native image
+# Скачиваем зависимости и собираем native image
 RUN ./gradlew nativeCompile --no-daemon
 
 # Финальный образ с native binary
@@ -20,7 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6 \
     libstdc++6 \
     zlib1g \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -33,5 +32,5 @@ RUN chmod +x /app/economy-api
 
 EXPOSE 8080
 
-# Запускаем native binary (значительно быстрее запуск)
+# Запускаем native binary
 ENTRYPOINT ["/app/economy-api"]
