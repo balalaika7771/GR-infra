@@ -482,10 +482,7 @@ deploy() {
     TMP_CTX=$(mktemp -d)
     cp -R services "$TMP_CTX"/
     mkdir -p "$TMP_CTX/services/economy-api"
-    # Забираем JAR напрямую из pod Artifactory (без DNS и внешних портов)
-    ARTIFACTORY_POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=artifactory -o jsonpath='{.items[0].metadata.name}')
-    ARTIFACT_PATH_IN_POD="/usr/share/nginx/html/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
-    kubectl cp "$NAMESPACE/$ARTIFACTORY_POD:$ARTIFACT_PATH_IN_POD" "$TMP_CTX/services/economy-api/app.jar"
+    curl -fsSL "$ARTIFACT_URL" -o "$TMP_CTX/services/economy-api/app.jar"
 
     docker build -f "$TMP_CTX/services/economy-api/Dockerfile" \
         -t "$REG_ADDR/economy-api:$TAG" \
