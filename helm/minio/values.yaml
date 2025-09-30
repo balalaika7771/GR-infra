@@ -18,4 +18,6 @@ persistence:
   enabled: true
   size: 10Gi
   storageClass: "hostpath"
+  hostPath:
+    path: "/var/lib/minecraft/minio"
 
