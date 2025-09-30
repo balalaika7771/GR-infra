@@ -60,6 +60,8 @@ spec:
               echo "nameserver 10.96.0.10" > /etc/resolv.conf
               echo "nameserver 8.8.8.8" >> /etc/resolv.conf
               echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+              echo "search minecraft.svc.cluster.local svc.cluster.local cluster.local" >> /etc/resolv.conf
+              echo "options ndots:5" >> /etc/resolv.conf
               mkdir -p /data/plugins
               PLUGINS_CONFIG="/plugins-config/plugins.yaml"
               if [ ! -f "$PLUGINS_CONFIG" ]; then
