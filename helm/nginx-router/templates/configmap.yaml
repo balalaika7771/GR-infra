@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nginx-router.fullname" . }}-conf
+data:
+  default.conf: |
+    load_module /usr/lib/nginx/modules/ngx_stream_module.so;
+
+    events {}
+
+    http {
+      server {
+        listen 80;
+        server_name _;
+        # Консоль MinIO по умолчанию
+        location / {
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_pass http://minio.minecraft.svc.cluster.local:9001;
+        }
+
+        # Доступ к S3 API через префикс /s3/
+        location /s3/ {
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          rewrite ^/s3/(.*)$ /$1 break;
+          proxy_pass http://minio.minecraft.svc.cluster.local:9000;
+        }
+      }
+    }
+
+    stream {
+      upstream velocity_tcp {
+        server velocity.minecraft.svc.cluster.local:25565;
+      }
+
+      server {
+        listen 25565;
+        proxy_pass velocity_tcp;
+        proxy_timeout 5m;
+        proxy_connect_timeout 15s;
+      }
+    }
+

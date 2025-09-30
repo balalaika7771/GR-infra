@@ -1,0 +1,7 @@
+apiVersion: v2
+name: nginx-router
+description: Simple NGINX router for HTTP reverse-proxy and Minecraft TCP (25565) to Velocity
+type: application
+version: 0.1.0
+appVersion: "1.25"
+

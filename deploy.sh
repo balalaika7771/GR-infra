@@ -303,6 +303,16 @@ deploy() {
     helm_safe_upgrade registry ./helm/registry --wait --timeout=180s
     success "Registry deployed"
     
+    # Устанавливаем MinIO (object storage)
+    log "Installing Helm chart: minio"
+    helm_safe_upgrade minio ./helm/minio --wait --timeout=600s
+    success "MinIO deployed (API NodePort 30090, Console NodePort 30091)"
+
+    # Устанавливаем NGINX Router (HTTP reverse-proxy + TCP 25565→Velocity)
+    log "Installing Helm chart: nginx-router"
+    helm_safe_upgrade nginx-router ./helm/nginx-router --wait --timeout=300s
+    success "NGINX Router deployed (HTTP NodePort 30080, MC NodePort 30000)"
+
     # Устанавливаем Artifactory
     log "Installing Helm chart: artifactory"
     helm_safe_upgrade artifactory ./helm/artifactory --wait --timeout=600s

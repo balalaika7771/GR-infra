@@ -1,0 +1,21 @@
+image:
+  repository: quay.io/minio/minio
+  tag: RELEASE.2024-06-13T22-53-53Z
+  pullPolicy: IfNotPresent
+
+service:
+  type: NodePort
+  apiPort: 9000
+  apiNodePort: 30090
+  consolePort: 9001
+  consoleNodePort: 30091
+
+auth:
+  rootUser: admin
+  rootPassword: admin12345
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: ""
+
