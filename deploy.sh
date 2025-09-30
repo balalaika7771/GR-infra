@@ -478,18 +478,12 @@ deploy() {
         service docker restart || true
     fi
 
-    # Подкладываем JAR в контекст и собираем образ без сетевого доступа к Artifactory в Dockerfile
-    TMP_CTX=$(mktemp -d)
-    cp -R services "$TMP_CTX"/
-    mkdir -p "$TMP_CTX/services/economy-api"
-    curl -fsSL "$ARTIFACT_URL" -o "$TMP_CTX/services/economy-api/app.jar"
-
-    docker build -f "$TMP_CTX/services/economy-api/Dockerfile" \
+    docker build -f services/economy-api/Dockerfile \
+        --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
         -t "$REG_ADDR/economy-api:$TAG" \
-        "$TMP_CTX/services/economy-api"
+        services/economy-api
 
     docker push "$REG_ADDR/economy-api:$TAG"
-    rm -rf "$TMP_CTX" || true
 
     # Save tag for Helm
     echo "$TAG" > .economy-api-image-tag
