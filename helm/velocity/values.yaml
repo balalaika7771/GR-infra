@@ -4,9 +4,9 @@ image:
   pullPolicy: IfNotPresent
 
 service:
-  type: ClusterIP  # Доступ только внутри кластера; внешний трафик идёт через nginx-router
+  type: NodePort  # Стабильный доступ для OrbStack
   port: 25565
-  # nodePort: 30000
+  nodePort: 30000  # Фиксированный порт для стабильности
 
 resources:
   requests:
