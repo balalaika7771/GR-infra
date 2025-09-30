@@ -8,7 +8,7 @@ service:
   httpPort: 80
   httpNodePort: 30080
   mcPort: 25565
-  mcNodePort: 30065
+  mcNodePort: 30000
 
 routes:
   http:
