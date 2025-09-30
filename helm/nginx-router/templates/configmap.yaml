@@ -26,7 +26,7 @@ data:
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_pass http://minio.minecraft.svc.cluster.local:9001;
+        proxy_pass http://minio-minio.minecraft.svc.cluster.local:9001;
       }
 
       # Доступ к S3 API через префикс /s3/
@@ -36,18 +36,15 @@ data:
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         rewrite ^/s3/(.*)$ /$1 break;
-        proxy_pass http://minio.minecraft.svc.cluster.local:9000;
+        proxy_pass http://minio-minio.minecraft.svc.cluster.local:9000;
       }
     }
 
   stream.conf: |
-    upstream velocity_tcp {
-      server velocity.minecraft.svc.cluster.local:25565;
-    }
-
     server {
       listen 25565;
-      proxy_pass velocity_tcp;
+      # Проксируем на сервис Velocity (учитываем fullname)
+      proxy_pass velocity-velocity.minecraft.svc.cluster.local:25565;
       proxy_timeout 5m;
       proxy_connect_timeout 15s;
     }
