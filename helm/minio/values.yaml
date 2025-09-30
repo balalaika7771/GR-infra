@@ -4,9 +4,11 @@ image:
   pullPolicy: IfNotPresent
 
 service:
-  type: ClusterIP
+  type: NodePort
   apiPort: 9000
+  apiNodePort: 30090
   consolePort: 9001
+  consoleNodePort: 30091
 
 auth:
   rootUser: admin
