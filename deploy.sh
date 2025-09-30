@@ -444,50 +444,50 @@ deploy() {
         warning "Directory services/economy-api not found, skipping"
     fi
 
-    # 3) In-cluster build: Kaniko Job -> push to registry ClusterIP
-    log "Building Economy API image inside cluster with Kaniko..."
+    # 3) Build on server Docker and push to registry ClusterIP (no internet exposure)
+    log "Building Economy API image on server and pushing to registry ClusterIP..."
     TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
     ARTIFACT_URL="http://artifactory.minecraft.svc.cluster.local/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+    REG_IP=$(kubectl -n $NAMESPACE get svc registry -o jsonpath='{.spec.clusterIP}')
+    REG_ADDR="$REG_IP:5000"
 
-    cat <<'KANIKO' | kubectl apply -n $NAMESPACE -f -
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: kaniko-build-economy-api
-spec:
-  backoffLimit: 0
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-        - name: kaniko
-          image: gcr.io/kaniko-project/executor:latest
-          args:
-            - "--dockerfile=/workspace/repo/services/economy-api/Dockerfile"
-            - "--context=/workspace"
-            - "--destination=registry.minecraft.svc.cluster.local:5000/economy-api:${TAG}"
-            - "--build-arg=ARTIFACT_URL=${ARTIFACT_URL}"
-            - "--skip-tls-verify=true"
-          env:
-            - name: DOCKER_CONFIG
-              value: /kaniko/.docker
-          volumeMounts:
-            - name: workspace
-              mountPath: /workspace
-      volumes:
-        - name: workspace
-          hostPath:
-            path: /opt/infra
-            type: Directory
-KANIKO
+    # Ensure docker allows insecure registry at $REG_ADDR
+    if command -v apt-get &> /dev/null; then
+        if ! command -v jq &> /dev/null; then
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -y || true
+            apt-get install -y jq || true
+        fi
+    fi
+    mkdir -p /etc/docker
+    if [ -f /etc/docker/daemon.json ]; then
+        TMP_DOCKER_CFG=$(mktemp)
+        jq \
+          --arg addr "$REG_ADDR" \
+          '. + {"insecure-registries": ((."insecure-registries" // []) + [$addr])} | .["insecure-registries"] |= (unique)' \
+          /etc/docker/daemon.json > "$TMP_DOCKER_CFG" 2>/dev/null || {
+              echo '{"insecure-registries": ["'"$REG_ADDR"'"]}' > "$TMP_DOCKER_CFG"
+          }
+        mv "$TMP_DOCKER_CFG" /etc/docker/daemon.json
+    else
+        echo '{"insecure-registries": ["'"$REG_ADDR"'"]}' > /etc/docker/daemon.json
+    fi
+    if command -v systemctl &> /dev/null; then
+        systemctl restart docker || true
+    else
+        service docker restart || true
+    fi
 
-    # Ждем завершения job
-    kubectl -n $NAMESPACE wait --for=condition=complete job/kaniko-build-economy-api --timeout=1200s
-    kubectl -n $NAMESPACE delete job kaniko-build-economy-api --ignore-not-found=true
+    docker build -f services/economy-api/Dockerfile \
+        --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
+        -t "$REG_ADDR/economy-api:$TAG" \
+        services/economy-api
 
-    # Сохраняем тег для использования в Helm
+    docker push "$REG_ADDR/economy-api:$TAG"
+
+    # Save tag for Helm
     echo "$TAG" > .economy-api-image-tag
-    success "Economy API image built and pushed in-cluster: registry:5000/economy-api:$TAG"
+    success "Economy API image built and pushed: $REG_ADDR/economy-api:$TAG"
     
     # Развертываем Purpur (теперь плагины уже в Artifactory)
     log "Deploying Purpur shard..."
@@ -506,9 +506,9 @@ KANIKO
     log "Deploying economy-api..."
     if [ -f ".economy-api-image-tag" ]; then
         IMAGE_TAG=$(cat .economy-api-image-tag)
-        log "Using pre-built image: registry:5000/economy-api:$IMAGE_TAG"
+        log "Using pre-built image: $REG_ADDR/economy-api:$IMAGE_TAG"
         helm_safe_upgrade economy-api $HELM_DIR/economy-api \
-            --set image.repository=registry:5000/economy-api \
+            --set image.repository=$REG_ADDR/economy-api \
             --set image.tag="$IMAGE_TAG" \
             --set image.pullPolicy=Always \
             --wait --timeout=600s
