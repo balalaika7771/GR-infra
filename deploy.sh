@@ -385,10 +385,26 @@ deploy() {
     # Публикуем ТОЛЬКО внутренние артефакты и собираем образ Economy API ПЕРЕД развертыванием
     log "Publishing internal artifacts (purpur-plugin, economy-api) and building Economy API image..."
     
-    # Ждем готовности artifactory (теперь ClusterIP)
-    log "Waiting for artifactory to be ready..."
+    # Ждем готовности artifactory и его NodePort
+    log "Waiting for artifactory to be ready and reachable on NodePort..."
     kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=artifactory -n $NAMESPACE --timeout=300s || true
-    success "artifactory ready (internal access only)"
+    # Определяем IP ноды (InternalIP)
+    NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+    if [ -z "$NODE_IP" ]; then
+        NODE_IP=$(hostname -I | awk '{print $1}')
+    fi
+    if [ -z "$NODE_IP" ]; then
+        NODE_IP="127.0.0.1"
+    fi
+    # Проверяем доступность NodePort 30002
+    for i in $(seq 1 30); do
+        if curl -fsS "http://$NODE_IP:30002/" >/dev/null; then
+            success "artifactory reachable at http://$NODE_IP:30002"
+            break
+        fi
+        log "artifactory not reachable yet at http://$NODE_IP:30002 (attempt $i/30)"
+        sleep 2
+    done
     # Гарантируем наличие Java для gradle wrapper
     ensure_java
     # Определяем pod artifactory
@@ -444,50 +460,22 @@ deploy() {
         warning "Directory services/economy-api not found, skipping"
     fi
 
-    # 3) In-cluster build: Kaniko Job -> push to registry ClusterIP
-    log "Building Economy API image inside cluster with Kaniko..."
+    # 3) Сборка и push Docker-образа economy-api на локальный реестр
+    log "Building and pushing Economy API Docker image..."
     TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
-    ARTIFACT_URL="http://artifactory.minecraft.svc.cluster.local/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+    # Для docker build используем IP ноды (NodePort)
+    ARTIFACT_URL="http://$NODE_IP:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
 
-    cat <<'KANIKO' | kubectl apply -n $NAMESPACE -f -
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: kaniko-build-economy-api
-spec:
-  backoffLimit: 0
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-        - name: kaniko
-          image: gcr.io/kaniko-project/executor:latest
-          args:
-            - "--dockerfile=/workspace/repo/services/economy-api/Dockerfile"
-            - "--context=/workspace"
-            - "--destination=registry.minecraft.svc.cluster.local:5000/economy-api:${TAG}"
-            - "--build-arg=ARTIFACT_URL=${ARTIFACT_URL}"
-            - "--skip-tls-verify=true"
-          env:
-            - name: DOCKER_CONFIG
-              value: /kaniko/.docker
-          volumeMounts:
-            - name: workspace
-              mountPath: /workspace
-      volumes:
-        - name: workspace
-          hostPath:
-            path: /opt/infra
-            type: Directory
-KANIKO
+    docker build -f services/economy-api/Dockerfile \
+        --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
+        -t "localhost:30502/economy-api:$TAG" \
+        services/economy-api
 
-    # Ждем завершения job
-    kubectl -n $NAMESPACE wait --for=condition=complete job/kaniko-build-economy-api --timeout=1200s
-    kubectl -n $NAMESPACE delete job kaniko-build-economy-api --ignore-not-found=true
+    docker push "localhost:30502/economy-api:$TAG"
 
     # Сохраняем тег для использования в Helm
     echo "$TAG" > .economy-api-image-tag
-    success "Economy API image built and pushed in-cluster: registry:5000/economy-api:$TAG"
+    success "Economy API image built and pushed: $TAG"
     
     # Развертываем Purpur (теперь плагины уже в Artifactory)
     log "Deploying Purpur shard..."
@@ -506,9 +494,9 @@ KANIKO
     log "Deploying economy-api..."
     if [ -f ".economy-api-image-tag" ]; then
         IMAGE_TAG=$(cat .economy-api-image-tag)
-        log "Using pre-built image: registry:5000/economy-api:$IMAGE_TAG"
+        log "Using pre-built image: localhost:30502/economy-api:$IMAGE_TAG"
         helm_safe_upgrade economy-api $HELM_DIR/economy-api \
-            --set image.repository=registry:5000/economy-api \
+            --set image.repository=localhost:30502/economy-api \
             --set image.tag="$IMAGE_TAG" \
             --set image.pullPolicy=Always \
             --wait --timeout=600s
