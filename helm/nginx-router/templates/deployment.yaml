@@ -22,6 +22,7 @@ spec:
         - name: nginx
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]
           ports:
             - name: http
               containerPort: 80
@@ -30,7 +31,14 @@ spec:
               protocol: TCP
           volumeMounts:
             - name: config
-              mountPath: /etc/nginx/conf.d
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: config
+              mountPath: /etc/nginx/conf.d/http.conf
+              subPath: http.conf
+            - name: config
+              mountPath: /etc/nginx/conf.d/stream.conf
+              subPath: stream.conf
       volumes:
         - name: config
           configMap:
