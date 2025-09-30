@@ -22,6 +22,7 @@ spec:
         - name: nginx
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["nginx"]
           args: ["-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]
           ports:
             - name: http
