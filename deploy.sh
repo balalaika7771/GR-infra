@@ -505,9 +505,10 @@ EOF
     REGISTRY_IP=$(kubectl get svc registry -n $NAMESPACE -o jsonpath='{.spec.clusterIP}')
     if [ -n "$REGISTRY_IP" ]; then
         log "Registry IP: $REGISTRY_IP"
-        docker push "$REGISTRY_IP:5000/economy-api:$TAG"
-        # Обновляем тег для использования с IP
+        # Создаем новый тег с IP адресом
         docker tag "registry:5000/economy-api:$TAG" "$REGISTRY_IP:5000/economy-api:$TAG"
+        # Push в registry по IP
+        docker push "$REGISTRY_IP:5000/economy-api:$TAG"
         # Сохраняем IP для использования в Helm
         echo "$REGISTRY_IP" > .registry-ip
     else
