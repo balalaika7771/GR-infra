@@ -220,42 +220,12 @@ publish_economy_api() {
 update_economy_api_image() {
     log_info "Обновление образа economy-api..."
     local tag="1.0.0-$(date +%Y%m%d%H%M%S)"
+    local artifact_url="http://$ARTIFACTORY_HOST:$ARTIFACTORY_PORT/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
     
-    # Используем локальный JAR файл
-    local economy_jar="services/economy-api/build/libs/economy-api-1.0.0.jar"
-    if [ ! -f "$economy_jar" ]; then
-        log_error "Economy API JAR not found: $economy_jar"
-        log_info "Building economy-api first..."
-        cd services/economy-api
-        ./gradlew clean build
-        cd ../..
-    fi
-    
-    # Создаем временный Dockerfile который копирует JAR напрямую
-    cat > services/economy-api/Dockerfile.local <<EOF
-FROM openjdk:21-jdk-slim
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Копируем JAR файл напрямую
-COPY build/libs/economy-api-1.0.0.jar app.jar
-
-# Проверяем что файл существует
-RUN test -s app.jar
-
-EXPOSE 8080
-
-CMD ["java", "-jar", "app.jar"]
-EOF
-    
-    docker build -f services/economy-api/Dockerfile.local \
+    docker build -f services/economy-api/Dockerfile \
+        --build-arg ARTIFACT_URL="$artifact_url" \
         -t "registry:5000/economy-api:$tag" \
         services/economy-api
-        
-    rm -f services/economy-api/Dockerfile.local
     
     docker push "registry:5000/economy-api:$tag"
     
