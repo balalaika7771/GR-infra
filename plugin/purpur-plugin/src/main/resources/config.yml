@@ -9,7 +9,7 @@ economy:
 # Настройки ресурс-пака
 resourcePack:
   # Прямая ссылка на pack.zip (https://example.com/pack.zip)
-  url: "https://uc15d6f83c6c36034758f5218289.dl.dropboxusercontent.com/cd/0/get/CyXWKXE8Yg8UnPP72mHigqmK7q4nXRGSpopaUgUlPZDGPlg9TyOaOuwIGi3wp8ZCN3w-q1DPYHMt9GrHVgjME-A4x2WIwUEKCCdSKJEd5BMt34E5UbfoIFLwb4EUPbvAfujF2JQQlZmGjXjuApRiQbT6ph4Ud-e1nF7Qqx4wgxEbsg/file?_download_id=081611469917702968400366955107326383357891601623159643963194534086&_log_download_success=1#"
+  url: "https://files.catbox.moe/xfluhi.zip"
   # SHA-1 хеш pack.zip (40-символьная hex-строка). Оставьте пустым, если не используете.
   sha1: ""
   # Требовать установку ресурс-пака (отказ -> кик)
