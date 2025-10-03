@@ -45,13 +45,51 @@ jobs:
           script: |
             set -e
             export KUBECONFIG=/etc/kubernetes/admin.conf
+            
+            # Переходим в директорию с инфраструктурой
             cd /opt/infra
+            
+            # Устанавливаем права на выполнение для скриптов
             chmod +x deploy.sh || true
             chmod +x repo/deploy.sh || true
-            if [ "${{ github.event.inputs.action }}" = "cleanup" ]; then
-              if [ -f ./deploy.sh ]; then ./deploy.sh --cleanup; else ./repo/deploy.sh --cleanup; fi
-            else
-              if [ -f ./deploy.sh ]; then ./deploy.sh; else ./repo/deploy.sh; fi
+            
+            # Устанавливаем необходимые зависимости если их нет
+            if ! command -v kubectl &> /dev/null; then
+              echo "Installing kubectl..."
+              curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+              chmod +x kubectl
+              sudo mv kubectl /usr/local/bin/
             fi
+            
+            if ! command -v helm &> /dev/null; then
+              echo "Installing helm..."
+              curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+            fi
+            
+            if ! command -v docker &> /dev/null; then
+              echo "Installing docker..."
+              curl -fsSL https://get.docker.com -o get-docker.sh
+              sh get-docker.sh
+              sudo usermod -aG docker $USER
+            fi
+            
+            # Запускаем соответствующий скрипт в зависимости от действия
+            if [ "${{ github.event.inputs.action }}" = "cleanup" ]; then
+              echo "Running cleanup..."
+              if [ -f ./deploy.sh ]; then 
+                ./deploy.sh --cleanup
+              else 
+                ./repo/deploy.sh --cleanup
+              fi
+            else
+              echo "Running deployment..."
+              if [ -f ./deploy.sh ]; then 
+                ./deploy.sh
+              else 
+                ./repo/deploy.sh
+              fi
+            fi
+            
+            echo "Deployment completed successfully!"
 
 

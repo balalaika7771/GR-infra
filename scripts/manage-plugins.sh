@@ -26,9 +26,9 @@ else
     HOST_IP="localhost"
 fi
 
-ARTIFACTORY_HOST="$HOST_IP"
-ARTIFACTORY_PORT="30002"
-DOCKER_REGISTRY_PORT="30502"
+ARTIFACTORY_HOST="artifactory"
+ARTIFACTORY_PORT="80"
+DOCKER_REGISTRY_PORT="5000"
 NAMESPACE="minecraft"
 
 # Показать справку
@@ -65,10 +65,10 @@ check_artifactory() {
 
 check_docker_registry() {
     log_info "Проверка доступности Docker Registry..."
-    if curl -s "http://localhost:$DOCKER_REGISTRY_PORT/v2/" >/dev/null; then
+    if kubectl exec -n "$NAMESPACE" deployment/registry -- curl -s "http://localhost:5000/v2/" >/dev/null 2>&1; then
         log_success "Docker Registry доступен"
     else
-        log_error "Docker Registry недоступен на http://localhost:$DOCKER_REGISTRY_PORT"
+        log_error "Docker Registry недоступен"
         exit 1
     fi
 }
@@ -224,13 +224,13 @@ update_economy_api_image() {
     
     docker build -f services/economy-api/Dockerfile \
         --build-arg ARTIFACT_URL="$artifact_url" \
-        -t "localhost:$DOCKER_REGISTRY_PORT/economy-api:$tag" \
+        -t "registry:5000/economy-api:$tag" \
         services/economy-api
     
-    docker push "localhost:$DOCKER_REGISTRY_PORT/economy-api:$tag"
+    docker push "registry:5000/economy-api:$tag"
     
     log_info "Обновление deployment economy-api..."
-    kubectl -n "$NAMESPACE" set image deploy/economy-api "economy-api=localhost:$DOCKER_REGISTRY_PORT/economy-api:$tag"
+    kubectl -n "$NAMESPACE" set image deploy/economy-api "economy-api=registry:5000/economy-api:$tag"
     kubectl -n "$NAMESPACE" rollout status deploy/economy-api --timeout=300s
     
     log_success "Образ economy-api обновлен: $tag"

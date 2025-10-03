@@ -259,9 +259,9 @@ cleanup() {
     
     # Очищаем Docker образы если они есть
     log "Очищаю Docker образы..."
-    docker rmi localhost:30500/economy-api:latest 2>/dev/null || true
-    docker rmi localhost:30500/economy-api:dev-* 2>/dev/null || true
-    docker rmi localhost:30500/economy-plugin:latest 2>/dev/null || true
+    docker rmi registry:5000/economy-api:latest 2>/dev/null || true
+    docker rmi registry:5000/economy-api:dev-* 2>/dev/null || true
+    docker rmi registry:5000/economy-plugin:latest 2>/dev/null || true
     docker rmi economy-api:dev-* 2>/dev/null || true
     docker rmi economy-api:base 2>/dev/null || true
     
@@ -292,6 +292,20 @@ deploy() {
     
     # Проверяем доступ к Docker
     check_docker_access
+    
+    # Настраиваем Docker daemon для работы с внутренним registry
+    log "Configuring Docker daemon for internal registry..."
+    if ! grep -q "registry:5000" /etc/docker/daemon.json 2>/dev/null; then
+        sudo mkdir -p /etc/docker
+        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+  "insecure-registries": ["registry:5000"]
+}
+EOF
+        sudo systemctl restart docker || true
+        sleep 5
+    fi
+    success "Docker daemon configured for internal registry"
     
     # Создаем namespace
     log "Creating namespace $NAMESPACE..."
@@ -375,24 +389,17 @@ deploy() {
     # Публикуем ТОЛЬКО внутренние артефакты и собираем образ Economy API ПЕРЕД развертыванием
     log "Publishing internal artifacts (purpur-plugin, economy-api) and building Economy API image..."
     
-    # Ждем готовности artifactory и его NodePort
-    log "Waiting for artifactory to be ready and reachable on NodePort..."
+    # Ждем готовности artifactory
+    log "Waiting for artifactory to be ready..."
     kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=artifactory -n $NAMESPACE --timeout=300s || true
-    # Определяем IP ноды (InternalIP)
-    NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-    if [ -z "$NODE_IP" ]; then
-        NODE_IP=$(hostname -I | awk '{print $1}')
-    fi
-    if [ -z "$NODE_IP" ]; then
-        NODE_IP="127.0.0.1"
-    fi
-    # Проверяем доступность NodePort 30002
+    
+    # Проверяем доступность artifactory через ClusterIP
     for i in $(seq 1 30); do
-        if curl -fsS "http://$NODE_IP:30002/" >/dev/null; then
-            success "artifactory reachable at http://$NODE_IP:30002"
+        if kubectl exec -n $NAMESPACE deployment/artifactory -- curl -fsS "http://localhost:80/" >/dev/null 2>&1; then
+            success "artifactory is ready"
             break
         fi
-        log "artifactory not reachable yet at http://$NODE_IP:30002 (attempt $i/30)"
+        log "artifactory not ready yet (attempt $i/30)"
         sleep 2
     done
     # Гарантируем наличие Java для gradle wrapper
@@ -453,15 +460,15 @@ deploy() {
     # 3) Сборка и push Docker-образа economy-api на локальный реестр
     log "Building and pushing Economy API Docker image..."
     TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
-    # Для docker build используем IP ноды (NodePort)
-    ARTIFACT_URL="http://$NODE_IP:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+    # Для docker build используем ClusterIP сервис
+    ARTIFACT_URL="http://artifactory:80/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
 
     docker build -f services/economy-api/Dockerfile \
         --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
-        -t "localhost:30502/economy-api:$TAG" \
+        -t "registry:5000/economy-api:$TAG" \
         services/economy-api
 
-    docker push "localhost:30502/economy-api:$TAG"
+    docker push "registry:5000/economy-api:$TAG"
 
     # Сохраняем тег для использования в Helm
     echo "$TAG" > .economy-api-image-tag
@@ -484,9 +491,9 @@ deploy() {
     log "Deploying economy-api..."
     if [ -f ".economy-api-image-tag" ]; then
         IMAGE_TAG=$(cat .economy-api-image-tag)
-        log "Using pre-built image: localhost:30502/economy-api:$IMAGE_TAG"
+        log "Using pre-built image: registry:5000/economy-api:$IMAGE_TAG"
         helm_safe_upgrade economy-api $HELM_DIR/economy-api \
-            --set image.repository=localhost:30502/economy-api \
+            --set image.repository=registry:5000/economy-api \
             --set image.tag="$IMAGE_TAG" \
             --set image.pullPolicy=Always \
             --wait --timeout=600s

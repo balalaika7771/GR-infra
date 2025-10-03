@@ -13,7 +13,7 @@ java {
 
 // Значения по умолчанию для Artifactory (можно переопределить через -P)
 project.ext {
-    artifactoryUrl = project.findProperty('artifactory.url') ?: 'http://localhost:30002/artifactory'
+    artifactoryUrl = project.findProperty('artifactory.url') ?: 'http://artifactory:80'
     artifactoryUser = project.findProperty('artifactory.user') ?: 'admin'
     artifactoryPassword = project.findProperty('artifactory.password') ?: 'admin123'
 }
@@ -22,7 +22,7 @@ repositories {
     mavenCentral()
     maven { url 'https://repo.papermc.io/repository/maven-public/' }
     maven { url 'https://repo.papermc.io/repository/maven-snapshots/' }
-    // Наш Artifactory (NodePort 30002)
+    // Наш Artifactory (ClusterIP)
     maven {
         url "${project.ext.artifactoryUrl}/minecraft-plugins"
         allowInsecureProtocol = true
