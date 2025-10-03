@@ -235,16 +235,7 @@ EOF
         -t "$ECONOMY_DOCKER_IMAGE_REPO:$TAG" .
     rm -f Dockerfile.local
     
-    # Получаем IP адрес registry для Docker push
-    local registry_ip=$(kubectl get svc registry -n minecraft -o jsonpath='{.spec.clusterIP}')
-    if [ -n "$registry_ip" ]; then
-        log "Registry IP: $registry_ip"
-        docker tag "$ECONOMY_DOCKER_IMAGE_REPO:$TAG" "$registry_ip:5000/economy-api:$TAG"
-        docker push "$registry_ip:5000/economy-api:$TAG"
-    else
-        log_error "Failed to get registry IP"
-        exit 1
-    fi
+    docker push "$ECONOMY_DOCKER_IMAGE_REPO:$TAG"
     
     # Сохраняем тег для обновления deployment
     echo "$TAG" > .economy-api-image-tag

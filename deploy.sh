@@ -259,19 +259,15 @@ cleanup() {
     
     # Очищаем Docker образы если они есть
     log "Очищаю Docker образы..."
-    # Получаем IP registry для очистки
-    REGISTRY_IP=$(kubectl get svc registry -n $NAMESPACE -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "registry")
-    docker rmi "$REGISTRY_IP:5000/economy-api:latest" 2>/dev/null || true
-    docker rmi "$REGISTRY_IP:5000/economy-api:dev-*" 2>/dev/null || true
-    docker rmi "$REGISTRY_IP:5000/economy-plugin:latest" 2>/dev/null || true
+    docker rmi registry:5000/economy-api:latest 2>/dev/null || true
+    docker rmi registry:5000/economy-api:dev-* 2>/dev/null || true
+    docker rmi registry:5000/economy-plugin:latest 2>/dev/null || true
     docker rmi economy-api:dev-* 2>/dev/null || true
     docker rmi economy-api:base 2>/dev/null || true
     
     # Очищаем временные файлы
     log "Очищаю временные файлы..."
     rm -f .economy-api-image 2>/dev/null || true
-    rm -f .economy-api-image-tag 2>/dev/null || true
-    rm -f .registry-ip 2>/dev/null || true
     
     echo ""
     echo "================================================================================"
@@ -303,8 +299,7 @@ deploy() {
         sudo mkdir -p /etc/docker
         sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 {
-  "insecure-registries": ["registry:5000"],
-  "dns": ["10.96.0.10", "8.8.8.8", "8.8.4.4"]
+  "insecure-registries": ["registry:5000"]
 }
 EOF
         sudo systemctl restart docker || true
@@ -492,28 +487,15 @@ EOF
         
         docker build -f services/economy-api/Dockerfile.local \
             -t "registry:5000/economy-api:$TAG" \
-        services/economy-api
-
+            services/economy-api
+            
         rm -f services/economy-api/Dockerfile.local
     else
         error "Economy API JAR not found: $ECONOMY_JAR"
         exit 1
     fi
 
-    # Получаем IP адрес registry для Docker push
-    log "Getting registry IP for Docker push..."
-    REGISTRY_IP=$(kubectl get svc registry -n $NAMESPACE -o jsonpath='{.spec.clusterIP}')
-    if [ -n "$REGISTRY_IP" ]; then
-        log "Registry IP: $REGISTRY_IP"
-        docker push "$REGISTRY_IP:5000/economy-api:$TAG"
-        # Обновляем тег для использования с IP
-        docker tag "registry:5000/economy-api:$TAG" "$REGISTRY_IP:5000/economy-api:$TAG"
-        # Сохраняем IP для использования в Helm
-        echo "$REGISTRY_IP" > .registry-ip
-    else
-        error "Failed to get registry IP"
-        exit 1
-    fi
+    docker push "registry:5000/economy-api:$TAG"
 
     # Сохраняем тег для использования в Helm
     echo "$TAG" > .economy-api-image-tag
@@ -534,12 +516,11 @@ EOF
     
     # Развертываем economy-api через Helm с готовым образом
     log "Deploying economy-api..."
-    if [ -f ".economy-api-image-tag" ] && [ -f ".registry-ip" ]; then
+    if [ -f ".economy-api-image-tag" ]; then
         IMAGE_TAG=$(cat .economy-api-image-tag)
-        REGISTRY_IP=$(cat .registry-ip)
-        log "Using pre-built image: $REGISTRY_IP:5000/economy-api:$IMAGE_TAG"
+        log "Using pre-built image: registry:5000/economy-api:$IMAGE_TAG"
         helm_safe_upgrade economy-api $HELM_DIR/economy-api \
-            --set image.repository="$REGISTRY_IP:5000/economy-api" \
+            --set image.repository=registry:5000/economy-api \
             --set image.tag="$IMAGE_TAG" \
             --set image.pullPolicy=Always \
             --wait --timeout=600s
