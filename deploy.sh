@@ -460,13 +460,40 @@ EOF
     # 3) Сборка и push Docker-образа economy-api на локальный реестр
     log "Building and pushing Economy API Docker image..."
     TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
-    # Для docker build используем ClusterIP сервис
-    ARTIFACT_URL="http://artifactory:80/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+    
+    # Копируем JAR файл локально для Docker build
+    ECONOMY_JAR="services/economy-api/build/libs/economy-api-1.0.0.jar"
+    if [ -f "$ECONOMY_JAR" ]; then
+        log "Using local JAR file for Docker build..."
+        # Создаем временный Dockerfile который копирует JAR напрямую
+        cat > services/economy-api/Dockerfile.local <<EOF
+FROM openjdk:21-jdk-slim
 
-    docker build -f services/economy-api/Dockerfile \
-        --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
-        -t "registry:5000/economy-api:$TAG" \
-        services/economy-api
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Копируем JAR файл напрямую
+COPY build/libs/economy-api-1.0.0.jar app.jar
+
+# Проверяем что файл существует
+RUN test -s app.jar
+
+EXPOSE 8080
+
+CMD ["java", "-jar", "app.jar"]
+EOF
+        
+        docker build -f services/economy-api/Dockerfile.local \
+            -t "registry:5000/economy-api:$TAG" \
+            services/economy-api
+            
+        rm -f services/economy-api/Dockerfile.local
+    else
+        error "Economy API JAR not found: $ECONOMY_JAR"
+        exit 1
+    fi
 
     docker push "registry:5000/economy-api:$TAG"
 

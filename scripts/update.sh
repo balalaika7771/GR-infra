@@ -199,12 +199,41 @@ publish_economy_jar() {
 build_push_economy_image() {
     log "Сборка и push Docker образа economy-api..."
     local TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
-    local ARTIFACT_URL="http://artifactory:80/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+    
+    # Используем локальный JAR файл
+    local economy_jar="services/economy-api/build/libs/economy-api-1.0.0.jar"
+    if [ ! -f "$economy_jar" ]; then
+        log_error "Economy API JAR not found: $economy_jar"
+        log_info "Building economy-api first..."
+        cd services/economy-api
+        ./gradlew clean build
+        cd ../..
+    fi
+    
+    # Создаем временный Dockerfile который копирует JAR напрямую
+    cat > services/economy-api/Dockerfile.local <<EOF
+FROM openjdk:21-jdk-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Копируем JAR файл напрямую
+COPY build/libs/economy-api-1.0.0.jar app.jar
+
+# Проверяем что файл существует
+RUN test -s app.jar
+
+EXPOSE 8080
+
+CMD ["java", "-jar", "app.jar"]
+EOF
     
     cd services/economy-api
-    docker build -f Dockerfile \
-        --build-arg ARTIFACT_URL="$ARTIFACT_URL" \
+    docker build -f Dockerfile.local \
         -t "$ECONOMY_DOCKER_IMAGE_REPO:$TAG" .
+    rm -f Dockerfile.local
     
     docker push "$ECONOMY_DOCKER_IMAGE_REPO:$TAG"
     
