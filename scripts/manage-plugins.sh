@@ -257,10 +257,19 @@ EOF
         
     rm -f services/economy-api/Dockerfile.local
     
-    docker push "registry:5000/economy-api:$tag"
-    
-    log_info "Обновление deployment economy-api..."
-    kubectl -n "$NAMESPACE" set image deploy/economy-api "economy-api=registry:5000/economy-api:$tag"
+    # Получаем IP адрес registry для Docker push
+    local registry_ip=$(kubectl get svc registry -n "$NAMESPACE" -o jsonpath='{.spec.clusterIP}')
+    if [ -n "$registry_ip" ]; then
+        log_info "Registry IP: $registry_ip"
+        docker tag "registry:5000/economy-api:$tag" "$registry_ip:5000/economy-api:$tag"
+        docker push "$registry_ip:5000/economy-api:$tag"
+        
+        log_info "Обновление deployment economy-api..."
+        kubectl -n "$NAMESPACE" set image deploy/economy-api "economy-api=$registry_ip:5000/economy-api:$tag"
+    else
+        log_error "Failed to get registry IP"
+        exit 1
+    fi
     kubectl -n "$NAMESPACE" rollout status deploy/economy-api --timeout=300s
     
     log_success "Образ economy-api обновлен: $tag"
