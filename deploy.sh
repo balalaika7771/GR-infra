@@ -299,14 +299,26 @@ deploy() {
     
     # Настраиваем Docker daemon для работы с внутренним registry
     log "Configuring Docker daemon for internal registry..."
+    # Получаем IP registry заранее для настройки insecure-registries
+    REGISTRY_IP=$(kubectl get svc registry -n $NAMESPACE -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "")
+    
     if ! grep -q "registry:5000" /etc/docker/daemon.json 2>/dev/null; then
         sudo mkdir -p /etc/docker
-        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+        if [ -n "$REGISTRY_IP" ]; then
+            sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+  "insecure-registries": ["registry:5000", "$REGISTRY_IP:5000"],
+  "dns": ["10.96.0.10", "8.8.8.8", "8.8.4.4"]
+}
+EOF
+        else
+            sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 {
   "insecure-registries": ["registry:5000"],
   "dns": ["10.96.0.10", "8.8.8.8", "8.8.4.4"]
 }
 EOF
+        fi
         sudo systemctl restart docker || true
         sleep 5
     fi
@@ -502,11 +514,23 @@ EOF
 
     # Получаем IP адрес registry для Docker push
     log "Getting registry IP for Docker push..."
-    REGISTRY_IP=$(kubectl get svc registry -n $NAMESPACE -o jsonpath='{.spec.clusterIP}')
+    if [ -z "$REGISTRY_IP" ]; then
+        REGISTRY_IP=$(kubectl get svc registry -n $NAMESPACE -o jsonpath='{.spec.clusterIP}')
+    fi
+    
     if [ -n "$REGISTRY_IP" ]; then
         log "Registry IP: $REGISTRY_IP"
         # Создаем новый тег с IP адресом
         docker tag "registry:5000/economy-api:$TAG" "$REGISTRY_IP:5000/economy-api:$TAG"
+        
+        # Проверяем доступность registry
+        log "Checking registry availability..."
+        if curl -fsS "http://$REGISTRY_IP:5000/v2/" >/dev/null 2>&1; then
+            log "Registry is accessible"
+        else
+            warning "Registry may not be ready, trying push anyway..."
+        fi
+        
         # Push в registry по IP
         docker push "$REGISTRY_IP:5000/economy-api:$TAG"
         # Сохраняем IP для использования в Helm
