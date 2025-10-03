@@ -76,12 +76,7 @@ jobs:
             # Настраиваем Docker daemon для работы с внутренним registry
             echo "Configuring Docker daemon for internal registry..."
             sudo mkdir -p /etc/docker
-            sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
-{
-  "insecure-registries": ["registry:5000"],
-  "dns": ["10.96.0.10", "8.8.8.8", "8.8.4.4"]
-}
-EOF
+            echo '{"insecure-registries": ["registry:5000"], "dns": ["10.96.0.10", "8.8.8.8", "8.8.4.4"]}' | sudo tee /etc/docker/daemon.json > /dev/null
             sudo systemctl restart docker || true
             sleep 5
             
