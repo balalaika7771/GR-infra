@@ -4,8 +4,9 @@ image:
   pullPolicy: IfNotPresent
 
 service:
-  type: ClusterIP  # Только внутренний доступ
+  type: NodePort
   port: 5000
+  nodePort: 30502
 
 persistence:
   enabled: false

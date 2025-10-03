@@ -6,8 +6,9 @@ artifactory:
     pullPolicy: IfNotPresent
   
   service:
-    type: ClusterIP  # Только внутренний доступ
+    type: NodePort  # NodePort для внешнего доступа
     port: 80        # Nginx HTTP port
+    nodePort: 30002
   
   ingress:
     enabled: false

@@ -145,7 +145,7 @@ repo/
 ### Artifactory
 - **Назначение:** Хранилище артефактов (плагины, JAR)
 - **Реализация:** Nginx + статические файлы
-- **Доступ:** ClusterIP (только внутри кластера)
+- **Доступ:** NodePort 30002
 - **Структура:**
   ```
   /minecraft-plugins/org/owleebr/gr-core-plugin/1.0.0/
@@ -171,8 +171,8 @@ repo/
 ### Сеть
 - **Velocity:** NodePort 30000 (внешний доступ)
 - **Purpur:** ClusterIP (внутренний)
-- **Artifactory:** ClusterIP (внутренний)
-- **Registry:** ClusterIP (внутренний)
+- **Artifactory:** NodePort 30002 (разработка)
+- **Registry:** NodePort 30502 (Docker образы)
 
 ## Жизненный цикл разработки
 

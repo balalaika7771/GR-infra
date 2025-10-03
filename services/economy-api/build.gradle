@@ -7,7 +7,7 @@ plugins {
 
 // Значения по умолчанию для Artifactory (можно переопределить через -P)
 project.ext {
-    artifactoryUrl = project.findProperty('artifactory.url') ?: 'http://artifactory:80'
+    artifactoryUrl = project.findProperty('artifactory.url') ?: 'http://localhost:30002/artifactory'
     artifactoryUser = project.findProperty('artifactory.user') ?: 'admin'
     artifactoryPassword = project.findProperty('artifactory.password') ?: 'admin123'
 }

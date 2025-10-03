@@ -16,9 +16,9 @@ err() { echo -e "${RED}✗${NC} $1"; }
 
 # Конфигурация
 NAMESPACE="minecraft"
-ARTIFACTORY_HOST="artifactory"
-ARTIFACTORY_PORT="80"
-DOCKER_REGISTRY="registry:5000"
+ARTIFACTORY_HOST="localhost"
+ARTIFACTORY_PORT="30002"
+DOCKER_REGISTRY="localhost:30502"
 ECONOMY_DOCKER_IMAGE_REPO="$DOCKER_REGISTRY/economy-api"
 PURPUR_LABEL="app.kubernetes.io/name=purpur-shard"
 
@@ -199,7 +199,7 @@ publish_economy_jar() {
 build_push_economy_image() {
     log "Сборка и push Docker образа economy-api..."
     local TAG="1.0.0-$(date +%Y%m%d%H%M%S)"
-    local ARTIFACT_URL="http://artifactory:80/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
+    local ARTIFACT_URL="http://host.docker.internal:30002/economy-api/com/example/economy-api/1.0.0/economy-api-1.0.0.jar"
     
     cd services/economy-api
     docker build -f Dockerfile \
