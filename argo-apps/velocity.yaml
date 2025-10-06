@@ -36,6 +36,8 @@ spec:
         hpa:
           enabled: false
         env:
+          TYPE: "VELOCITY"
+          EULA: "TRUE"
           VELOCITY_VERSION: "LATEST"
           VELOCITY_FORWARDING_SECRET: "CHANGE_ME_STRONG_SECRET"
           ENABLE_RCON: "false"
