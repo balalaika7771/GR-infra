@@ -12,13 +12,38 @@ spec:
     helm:
       values: |
         image:
-          repository: endkind/velocity
+          repository: ghcr.io/itzg/mc-proxy
           tag: latest
           pullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "2Gi"
+        persistence:
+          enabled: true
+          size: 10Gi
+          storageClass: local-path
         service:
-          type: NodePort
+          type: ClusterIP
           port: 25565
-          nodePort: 30000
+        networkPolicy:
+          enabled: true
+        podDisruptionBudget:
+          enabled: true
+        hpa:
+          enabled: false
+        env:
+          VELOCITY_VERSION: "LATEST"
+          VELOCITY_FORWARDING_SECRET: "CHANGE_ME_STRONG_SECRET"
+          ENABLE_RCON: "false"
+          ONLINE_MODE: "true"
+          SERVER_PORT: "25565"
+        velocity:
+          backendService: "purpur"
+          backendPort: 25565
   destination:
     server: https://kubernetes.default.svc
     namespace: minecraft
