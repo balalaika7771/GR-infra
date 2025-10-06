@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: purpur
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/balalaika7771/GR-infra.git
+    targetRevision: HEAD
+    path: charts/purpur
+    helm:
+      values: |
+        image:
+          repository: itzg/minecraft-server
+          tag: latest
+          pullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "2Gi"
+          limits:
+            cpu: "2000m"
+            memory: "6Gi"
+        persistence:
+          enabled: true
+          size: 20Gi
+          storageClass: local-path
+        service:
+          type: ClusterIP
+          port: 25565
+        networkPolicy:
+          enabled: true
+        podDisruptionBudget:
+          enabled: true
+        hpa:
+          enabled: false
+        env:
+          TYPE: "PURPUR"
+          EULA: "TRUE"
+          ENABLE_RCON: "false"
+          ONLINE_MODE: "true"
+          MEMORY: "4G"
+          # пример плагинов можно монтировать через pvc и initContainers
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: minecraft
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+

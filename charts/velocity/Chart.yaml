@@ -1,0 +1,8 @@
+apiVersion: v2
+name: velocity
+description: Velocity proxy for Minecraft (itzg image)
+type: application
+version: 0.1.0
+appVersion: "latest"
+
+

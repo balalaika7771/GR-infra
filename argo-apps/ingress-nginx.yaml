@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: 4.11.2
+    helm:
+      values: |
+        controller:
+          replicaCount: 2
+          service:
+            type: LoadBalancer
+            # Если LoadBalancer недоступен в окружении, чарт автоматически fallback-ится на NodePort при необходимости через изменение типа
+            annotations:
+              # примеры аннотаций под облака; при on-prem удалить или заменить
+              # service.beta.kubernetes.io/aws-load-balancer-type: nlb
+              # metallb.universe.tf/address-pool: default
+            externalTrafficPolicy: Local
+          metrics:
+            enabled: false
+          extraArgs:
+            tcp-services-configmap: "minecraft/tcp-services"
+          ingressClassResource:
+            name: nginx
+            default: true
+          allowSnippetAnnotations: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: minecraft
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+

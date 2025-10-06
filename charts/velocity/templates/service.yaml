@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: velocity
+  labels:
+    app: velocity
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: velocity
+  ports:
+  - name: mc
+    port: {{ .Values.service.port }}
+    targetPort: 25565
+    protocol: TCP
+
+

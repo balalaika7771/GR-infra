@@ -1,0 +1,19 @@
+# Официальные манифесты установки Argo CD (минимальный профиль)
+# Версия привязана, чтобы избежать сюрпризов при апгрейде.
+apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: argocd
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: argocd-server
+    namespace: argocd
+# Для краткости используй официальный bundle:
+# curl -sSL -o - https://raw.githubusercontent.com/argoproj/argo-cd/v2.12.3/manifests/install.yaml | sed 's/namespace: argocd/namespace: argocd/g'
+# Здесь предполагается, что команда выше будет применена отдельно.
+
+

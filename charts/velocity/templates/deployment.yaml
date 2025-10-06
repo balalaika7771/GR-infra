@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: velocity
+  labels:
+    app: velocity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: velocity
+  template:
+    metadata:
+      labels:
+        app: velocity
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsNonRoot: true
+      containers:
+      - name: velocity
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 25565
+          name: mc
+          protocol: TCP
+        env:
+        - name: TYPE
+          value: {{ .Values.env.TYPE | quote }}
+        - name: EULA
+          value: {{ .Values.env.EULA | quote }}
+        - name: VELOCITY_VERSION
+          value: {{ .Values.env.VELOCITY_VERSION | quote }}
+        - name: VELOCITY_FORWARDING_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: velocity-secret
+              key: forwardingSecret
+        - name: ENABLE_RCON
+          value: {{ .Values.env.ENABLE_RCON | quote }}
+        - name: ONLINE_MODE
+          value: {{ .Values.env.ONLINE_MODE | quote }}
+        - name: VELOCITY_BACKEND_SERVERS
+          value: "{{ .Values.velocity.backendService }}:{{ .Values.velocity.backendPort }}"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+        livenessProbe:
+          tcpSocket:
+            port: mc
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: mc
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop: ["ALL"]
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: velocity-data
+
+
