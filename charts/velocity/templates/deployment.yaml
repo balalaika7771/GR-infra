@@ -27,10 +27,6 @@ spec:
           name: mc
           protocol: TCP
         env:
-        - name: TYPE
-          value: {{ .Values.env.TYPE | quote }}
-        - name: EULA
-          value: {{ .Values.env.EULA | quote }}
         - name: VELOCITY_VERSION
           value: {{ .Values.env.VELOCITY_VERSION | quote }}
         - name: VELOCITY_FORWARDING_SECRET
@@ -44,6 +40,8 @@ spec:
           value: {{ .Values.env.ONLINE_MODE | quote }}
         - name: VELOCITY_BACKEND_SERVERS
           value: "{{ .Values.velocity.backendService }}:{{ .Values.velocity.backendPort }}"
+        - name: SERVER_PORT
+          value: {{ .Values.env.SERVER_PORT | quote }}
         volumeMounts:
         - name: data
           mountPath: /data
