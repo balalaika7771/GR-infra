@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: argocd-application-controller
+  namespace: argocd
+spec:
+  template:
+    spec:
+      containers:
+        - name: argocd-application-controller
+          env:
+            - name: ARGOCD_RECONCILIATION_TIMEOUT
+              value: "30s"
+            - name: ARGOCD_RECONCILIATION_JITTER
+              value: "0"
+            - name: ARGOCD_GIT_POLL_INTERVAL
+              value: "30s"
+            - name: ARGOCD_STATUS_PROCESSOR_BATCH_MAX_TTL
+              value: "30s"
+            - name: ARGOCD_OPERATION_PROCESSOR_BATCH_MAX_TTL
+              value: "30s"
+
