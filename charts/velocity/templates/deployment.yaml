@@ -18,7 +18,22 @@ spec:
         fsGroup: 1000
         runAsUser: 1000
         runAsNonRoot: true
-      initContainers: []
+        runAsGroup: 1000
+      initContainers:
+      - name: init-perms
+        image: alpine:3.20
+        command: ["/bin/sh","-c"]
+        args: ["mkdir -p /endkind /server && chmod 0777 /endkind /server"]
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+        - name: endkind
+          mountPath: /endkind
+        - name: data
+          mountPath: /server
       containers:
       - name: velocity
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
