@@ -26,25 +26,15 @@ spec:
         - containerPort: 25565
           name: mc
           protocol: TCP
-        env:
-        - name: VELOCITY_VERSION
-          value: {{ .Values.env.VELOCITY_VERSION | quote }}
-        - name: VELOCITY_FORWARDING_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: velocity-secret
-              key: forwardingSecret
-        - name: ENABLE_RCON
-          value: {{ .Values.env.ENABLE_RCON | quote }}
-        - name: ONLINE_MODE
-          value: {{ .Values.env.ONLINE_MODE | quote }}
-        - name: VELOCITY_BACKEND_SERVERS
-          value: "{{ .Values.velocity.backendService }}:{{ .Values.velocity.backendPort }}"
-        - name: SERVER_PORT
-          value: {{ .Values.env.SERVER_PORT | quote }}
         volumeMounts:
         - name: data
           mountPath: /data
+        - name: velocity-config
+          mountPath: /config/velocity.toml
+          subPath: velocity.toml
+        - name: velocity-secret
+          mountPath: /config/forwarding.secret
+          subPath: forwarding.secret
         resources:
 {{ toYaml .Values.resources | indent 10 }}
         livenessProbe:
@@ -66,5 +56,11 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: velocity-data
+      - name: velocity-config
+        configMap:
+          name: velocity-config
+      - name: velocity-secret
+        secret:
+          secretName: velocity-secret
 
 
