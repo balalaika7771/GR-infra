@@ -9,15 +9,6 @@ spec:
     repoURL: https://github.com/balalaika7771/GR-infra.git
     targetRevision: HEAD
     path: charts/velocity
-    helm:
-      values: |
-        image:
-          repository: endkind/velocity
-          tag: latest
-          pullPolicy: IfNotPresent
-        service:
-          type: ClusterIP
-          port: 25565
   destination:
     server: https://kubernetes.default.svc
     namespace: minecraft
@@ -25,6 +16,4 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
-    - CreateNamespace=true
 
