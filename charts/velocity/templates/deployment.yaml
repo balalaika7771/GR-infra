@@ -44,8 +44,6 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
-        - name: data
-          mountPath: /server
         - name: velocity-config
           mountPath: /server/velocity.toml
           subPath: velocity.toml
