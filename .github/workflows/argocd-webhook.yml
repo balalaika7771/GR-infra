@@ -1,0 +1,19 @@
+name: ArgoCD Sync
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  notify-argocd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send webhook to Argo CD
+        env:
+          ARGOCD_WEBHOOK_URL: ${{ secrets.ARGOCD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$ARGOCD_WEBHOOK_URL" ]; then
+            echo "Missing secret ARGOCD_WEBHOOK_URL" >&2
+            exit 1
+          fi
+          curl -sS -X POST "$ARGOCD_WEBHOOK_URL" -H 'Content-Type: application/json' -d '{"ref":"refs/heads/main"}'
