@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/itzg/mc-proxy
+  repository: ghcr.io/itzg/minecraft-server
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -27,7 +27,6 @@ env:
   VELOCITY_FORWARDING_SECRET: "CHANGE_ME_STRONG_SECRET"
   ENABLE_RCON: "false"
   ONLINE_MODE: "true"
-  SERVER_PORT: "25565"
 
 velocity:
   backendService: "purpur"
