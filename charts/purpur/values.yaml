@@ -1,73 +1,31 @@
 image:
-  repository: josxha/minecraft-purpur
-  tag: 1.21.5
+  repository: itzg/minecraft-server
+  tag: latest
   pullPolicy: IfNotPresent
 
-version: "1.21.5"
+resources:
+  requests:
+    cpu: 500m
+    memory: 2Gi
+  limits:
+    cpu: "2"
+    memory: 6Gi
 
-replicas: 1
+persistence:
+  enabled: true
+  size: 20Gi
+  storageClass: local-path
 
 service:
   type: ClusterIP
   port: 25565
-  headless: true
 
-jvm:
-  opts: "-Xms1g -Xmx3g -XX:+UseG1GC -XX:MaxGCPauseMillis=75 -Dfile.encoding=UTF-8"
-
-resources:
-  requests:
-    cpu: "1000m"
-    memory: "3Gi"
-  limits:
-    cpu: "1"
-    memory: "4Gi"
-
-health:
-  port: 8080
-
-velocity:
-  forwardingSecret: "minecraft-secret-key"
-  allowedNamespaceLabel: "app.kubernetes.io/name=velocity"
-
-server:
-  onlineMode: false
-  velocity:
-    enabled: true
-    secret: "minecraft-secret-key"
-    forwardingMode: "modern"
-
-persistence:
-  enabled: true
-  size: 10Gi
-  storageClass: ""
-  shared: true
-  hostPath:
-    path: "/var/lib/minecraft/purpur-lobby-world"
-    nodeName: ""
-
-plugin:
-  enabled: false
-  name: "purpur-plugin-1.0.0.jar"
-  config:
-    economy:
-      url: "http://economy-api:8080"
-      timeout: 5000
-    redis:
-      host: "redis"
-      port: 6379
-      timeout: 5000
-
-# Allow scheduling on single-node control-plane
-tolerations:
-  - key: "node-role.kubernetes.io/control-plane"
-    operator: "Exists"
-    effect: "NoSchedule"
-  - key: "node-role.kubernetes.io/master"
-    operator: "Exists"
-    effect: "NoSchedule"
-
-nodeSelector: {}
+env:
+  TYPE: "PURPUR"
+  EULA: "TRUE"
+  ENABLE_RCON: "false"
+  ONLINE_MODE: "true"
+  MEMORY: "4G"
 
 networkPolicy:
   enabled: true

@@ -4,14 +4,6 @@ metadata:
   name: velocity-secret
 type: Opaque
 stringData:
-  forwarding.secret: {{ .Values.forwardingSecret | quote }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: velocity-config
-data:
-  velocity.toml: |
-{{ .Values.config.velocityToml | indent 4 }}
+  forwardingSecret: "CHANGE_ME_STRONG_SECRET"
 
 
