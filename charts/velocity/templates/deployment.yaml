@@ -22,13 +22,15 @@ spec:
       - name: init-perms
         image: alpine:3.20
         command: ["/bin/sh","-c"]
-        args: ["mkdir -p /server"]
+        args: ["mkdir -p /endkind /server"]
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           capabilities:
             drop: ["ALL"]
         volumeMounts:
+        - name: endkind
+          mountPath: /endkind
         - name: data
           mountPath: /server
       containers:
@@ -50,6 +52,8 @@ spec:
         - name: velocity-secret
           mountPath: /server/forwarding.secret
           subPath: forwarding.secret
+        - name: endkind
+          mountPath: /endkind
         resources:
 {{ toYaml .Values.resources | indent 10 }}
         livenessProbe:
@@ -77,5 +81,7 @@ spec:
       - name: velocity-secret
         secret:
           secretName: velocity-secret
+      - name: endkind
+        emptyDir: {}
 
 
