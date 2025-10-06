@@ -30,10 +30,10 @@ spec:
         - name: data
           mountPath: /data
         - name: velocity-config
-          mountPath: /config/velocity.toml
+          mountPath: /server/velocity.toml
           subPath: velocity.toml
         - name: velocity-secret
-          mountPath: /config/forwarding.secret
+          mountPath: /server/forwarding.secret
           subPath: forwarding.secret
         resources:
 {{ toYaml .Values.resources | indent 10 }}
