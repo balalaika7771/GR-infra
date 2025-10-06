@@ -21,12 +21,6 @@ spec:
               # service.beta.kubernetes.io/aws-load-balancer-type: nlb
               # metallb.universe.tf/address-pool: default
             externalTrafficPolicy: Local
-            extraPorts:
-            - name: minecraft-tcp
-              port: 25565
-              targetPort: 25565
-              protocol: TCP
-              nodePort: 32565
           metrics:
             enabled: false
           extraArgs:
