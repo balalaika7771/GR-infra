@@ -49,6 +49,8 @@ spec:
           mountPath: /config
         - name: secret
           mountPath: /secret
+        - name: endkind
+          mountPath: /endkind
         # no /endkind mount
         resources:
 {{ toYaml .Values.resources | indent 10 }}
@@ -76,6 +78,8 @@ spec:
       - name: secret
         secret:
           secretName: velocity-secret
+      - name: endkind
+        emptyDir: {}
       # no endkind volume
 
 
