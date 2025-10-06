@@ -12,7 +12,7 @@ spec:
     helm:
       values: |
         image:
-          repository: ghcr.io/itzg/minecraft-server
+          repository: ghcr.io/itzg/mc-proxy
           tag: latest
           pullPolicy: IfNotPresent
         resources:
@@ -42,6 +42,7 @@ spec:
           VELOCITY_FORWARDING_SECRET: "CHANGE_ME_STRONG_SECRET"
           ENABLE_RCON: "false"
           ONLINE_MODE: "true"
+          SERVER_PORT: "25565"
         velocity:
           backendService: "purpur"
           backendPort: 25565
