@@ -23,12 +23,10 @@ spec:
       - name: init-perms
         image: alpine:3.20
         command: ["/bin/sh","-c"]
-        args: ["set -e; mkdir -p /endkind /server; chown -R 1000:1000 /endkind /server; chmod 0777 /endkind /server"]
+        args: ["mkdir -p /endkind /server && chmod 0777 /endkind /server"]
         securityContext:
-          runAsUser: 0
-          runAsGroup: 0
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: false
+          readOnlyRootFilesystem: true
           capabilities:
             drop: ["ALL"]
         volumeMounts:
