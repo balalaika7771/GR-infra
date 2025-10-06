@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+labels:
+  app.kubernetes.io/name: argocd-cmd-params-cm
+  app.kubernetes.io/part-of: argocd
+data:
+  # How often the application controller reconciles apps (detects drift & new commits)
+  controller.app.resync.period: "30s"
+  # How long reposerver keeps cache before re-fetching git
+  reposerver.repo.cache.expiration: "1m"
+  # Optional: speed up processors (defaults are fine, but you can tune)
+  controller.status.processors: "20"
+  controller.operation.processors: "10"
+
