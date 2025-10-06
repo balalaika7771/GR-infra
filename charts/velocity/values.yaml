@@ -25,7 +25,7 @@ config:
     online-mode = true
     player-info-forwarding-mode = "modern"
     forwarding-secret-file = "forwarding.secret"
-    servers.lobby = "purpur-lobby-purpur:25565"
+    servers.lobby = "purpur:25565"
     try = ["lobby"]
     
     [forced-hosts]
