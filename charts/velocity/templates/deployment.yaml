@@ -19,6 +19,7 @@ spec:
         runAsUser: 1000
         runAsNonRoot: true
         runAsGroup: 1000
+        fsGroupChangePolicy: Always
       initContainers:
       - name: copy-config
         image: busybox:1.36
@@ -48,6 +49,8 @@ spec:
           mountPath: /config
         - name: secret
           mountPath: /secret
+        - name: endkind
+          mountPath: /endkind
         # no /endkind mount
         resources:
 {{ toYaml .Values.resources | indent 10 }}
@@ -75,6 +78,8 @@ spec:
       - name: secret
         secret:
           secretName: velocity-secret
+      - name: endkind
+        emptyDir: {}
       # no endkind volume
 
 
