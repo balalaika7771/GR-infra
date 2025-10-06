@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "purpur.fullname" . }}
+  labels:
+    {{- include "purpur.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "purpur.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "purpur.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: false
+        fsGroup: 10001
+      containers:
+        - name: purpur
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "{{ .Values.jvm.opts }}"
+            - name: FORWARDING_SECRET
+              value: "minecraft-secret-key"
+            - name: EULA
+              value: "TRUE"
+            - name: TYPE
+              value: "PURPUR"
+            - name: VERSION
+              value: "{{ .Values.version }}"
+            - name: ONLINE_MODE
+              value: "{{ .Values.server.onlineMode | default false }}"
+            - name: VELOCITY_SECRET
+              value: "{{ .Values.server.velocity.secret }}"
+          ports:
+            - name: mc
+              containerPort: 25565
+              protocol: TCP
+            - name: health
+              containerPort: {{ .Values.health.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: world
+              mountPath: /data
+            - name: config
+              mountPath: /config
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    echo "save-all" | nc -w 5 localhost 25565 || true
+                    sleep 5
+                    echo "stop" | nc -w 5 localhost 25565 || true
+                    sleep 10
+          readinessProbe:
+            tcpSocket:
+              port: 25565
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 25565
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+      volumes:
+        - name: world
+          {{- if .Values.persistence.enabled }}
+          {{- if .Values.persistence.shared }}
+          persistentVolumeClaim:
+            claimName: {{ include "purpur.fullname" . }}-shared-world
+          {{- else }}
+          persistentVolumeClaim:
+            claimName: {{ include "purpur.fullname" . }}-world
+          {{- end }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: config
+          configMap:
+            name: {{ include "purpur.fullname" . }}-config
+

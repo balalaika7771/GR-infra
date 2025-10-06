@@ -1,0 +1,60 @@
+image:
+  repository: endkind/velocity
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: NodePort
+  port: 25565
+  nodePort: 30000
+
+resources:
+  requests:
+    cpu: "200m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+config:
+  velocityToml: |
+    config-version = "2.0"
+    bind = "0.0.0.0:25565"
+    motd = "Welcome to K8s Network"
+    show-max-players = 5000
+    online-mode = true
+    player-info-forwarding-mode = "modern"
+    forwarding-secret-file = "forwarding.secret"
+    servers.lobby = "purpur-lobby-purpur:25565"
+    try = ["lobby"]
+    
+    [forced-hosts]
+    
+    [advanced]
+    accept-transfers = false
+    compression-threshold = 256
+    compression-level = -1
+    login-ratelimit = 3000
+    connection-timeout = 5000
+    read-timeout = 30000
+    haproxy-protocol = false
+    tcp-fast-open = false
+    bungee-plugin-message-channel = true
+    show-ping-requests = false
+    failover-on-unexpected-server-disconnect = true
+    announce-proxy-commands = true
+    log-command-executions = false
+    log-player-connections = true
+    accepts-transfers = false
+  forwardingSecret: "minecraft-secret-key"
+
+nodeSelector: {}
+
+tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"
+  - key: "node-role.kubernetes.io/master"
+    operator: "Exists"
+    effect: "NoSchedule"
+

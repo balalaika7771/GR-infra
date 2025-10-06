@@ -1,0 +1,7 @@
+apiVersion: v2
+name: velocity
+description: Velocity proxy for Minecraft (Helm chart)
+type: application
+version: 0.1.0
+appVersion: "latest"
+
