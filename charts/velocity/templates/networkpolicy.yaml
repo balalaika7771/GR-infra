@@ -45,6 +45,15 @@ spec:
       port: 53
     - protocol: TCP
       port: 53
+  # Разрешаем доступ на ClusterIP kube-dns напрямую (в некоторых CNI требуется явный ipBlock)
+  - to:
+    - ipBlock:
+        cidr: 10.96.0.10/32
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
   # Разрешаем исходящий доступ в Интернет для загрузки артефактов (HTTP/HTTPS)
   - to:
     - ipBlock:
