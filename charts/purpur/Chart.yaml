@@ -1,8 +1,0 @@
-apiVersion: v2
-name: purpur
-description: Purpur Minecraft server (itzg image)
-type: application
-version: 0.1.0
-appVersion: "latest"
-
-

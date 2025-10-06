@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  name: velocity-secret
-type: Opaque
-stringData:
-  forwardingSecret: "CHANGE_ME_STRONG_SECRET"
-
-
