@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/balalaika7771/GR-infra.git
     targetRevision: main
-    path: gr-infro/argo-apps
+    path: argo-apps
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

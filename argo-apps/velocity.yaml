@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/balalaika7771/GR-infra.git
     targetRevision: main
-    path: gr-infro/charts/velocity
+    path: charts/velocity
     helm:
       releaseName: velocity
   destination:
