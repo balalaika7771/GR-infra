@@ -17,6 +17,8 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "purpur.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     spec:
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
