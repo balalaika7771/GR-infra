@@ -32,6 +32,28 @@ spec:
     ports:
     - protocol: TCP
       port: 25565
+  # Разрешаем DNS-запросы к kube-dns
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Разрешаем исходящий доступ в Интернет для загрузки артефактов (HTTP/HTTPS)
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 443
 {{- end }}
 
 
