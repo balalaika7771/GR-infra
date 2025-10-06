@@ -80,8 +80,7 @@ spec:
             drop: ["ALL"]
       volumes:
       - name: data
-        persistentVolumeClaim:
-          claimName: velocity-data
+        emptyDir: {}
       - name: cfg
         configMap:
           name: velocity-config
