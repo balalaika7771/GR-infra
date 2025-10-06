@@ -16,8 +16,9 @@ spec:
           tag: latest
           pullPolicy: IfNotPresent
         service:
-          type: ClusterIP
+          type: NodePort
           port: 25565
+          nodePort: 30000
   destination:
     server: https://kubernetes.default.svc
     namespace: minecraft

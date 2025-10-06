@@ -13,6 +13,11 @@ spec:
     port: {{ .Values.service.port }}
     targetPort: 25565
     protocol: TCP
-  # Access strictly via ingress-nginx; no NodePort exposed
+    {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+    nodePort: {{ .Values.service.nodePort }}
+    {{- end }}
+  {{- if eq .Values.service.type "NodePort" }}
+  externalTrafficPolicy: Local
+  {{- end }}
 
 
