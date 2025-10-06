@@ -60,9 +60,4 @@ podDisruptionBudget:
 hpa:
   enabled: false
 
-persistence:
-  enabled: true
-  size: 10Gi
-  storageClass: local-path
-
 
