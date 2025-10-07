@@ -39,12 +39,9 @@ spec:
           args:
             - |
               mkdir -p /data/config
+              # Copy only paper-global.yml (Velocity config)
               cp /config-source/paper-global.yml /data/config/paper-global.yml
-              cp /config-source/spigot.yml /data/config/spigot.yml
-              cp /config-source/server.properties /data/server.properties
-              echo "velocity-support=true" >> /data/server.properties
-              echo "velocity-secret={{ .Values.server.velocity.secret }}" >> /data/server.properties
-              echo "Config files copied from ConfigMap"
+              echo "Copied paper-global.yml for Velocity support"
           volumeMounts:
             - name: world
               mountPath: /data

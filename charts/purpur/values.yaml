@@ -31,39 +31,25 @@ server:
   velocity:
     enabled: true
     secret: "minecraft-secret-key"
-    forwardingMode: "modern"
-  properties:
-    difficulty: easy
-    gamemode: survival
-    maxPlayers: 20
-    viewDistance: 10
-    simulationDistance: 10
-    spawnMonsters: false
-    spawnAnimals: true
-    pvp: false
-    allowFlight: false
-    allowNether: true
-    generateStructures: true
-    levelType: "minecraft:normal"
-    motd: "A Minecraft Server"
-  spigot:
-    restartOnCrash: true
-    movedTooQuicklyMultiplier: 10.0
-    movedWronglyThreshold: 0.0625
-    timeoutTime: 60
-    nettyThreads: 4
-  # Custom overrides applied on top of auto-generated configs
+  # Custom overrides applied on top of Purpur auto-generated configs
   overrides:
     serverProperties: |
-      # Custom server.properties overrides
-      # These will be appended to server.properties after Purpur generates it
+      # Custom server.properties overrides (appended after Purpur generates defaults)
+      difficulty=easy
+      gamemode=survival
+      max-players=20
+      view-distance=10
+      simulation-distance=10
+      spawn-monsters=false
+      pvp=false
+      motd=A Minecraft Server
     spigotYml: |
-      # Custom spigot.yml overrides (YAML format)
-      # Example:
+      # Custom spigot.yml overrides (merged with Purpur defaults)
+      # Example overrides:
       # world-settings:
       #   default:
       #     mob-spawn-range: 6
-      #     view-distance: 8
+      #     item-despawn-rate: 3000
 
 persistence:
   enabled: true
