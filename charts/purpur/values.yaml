@@ -34,10 +34,6 @@ persistence:
   shared: true
 
 plugins:
-  persistence:
-    enabled: true
-    size: 5Gi
-    storageClass: ""
   list:
     - name: gr-core-plugin
       type: github

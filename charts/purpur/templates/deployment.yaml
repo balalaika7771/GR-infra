@@ -89,8 +89,6 @@ spec:
           volumeMounts:
             - name: world
               mountPath: /data
-            - name: plugins
-              mountPath: /data/plugins
           lifecycle:
             preStop:
               exec:
@@ -128,13 +126,6 @@ spec:
           persistentVolumeClaim:
             claimName: {{ include "purpur.fullname" . }}-world
           {{- end }}
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
-        - name: plugins
-          {{- if .Values.plugins.persistence.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ include "purpur.fullname" . }}-plugins
           {{- else }}
           emptyDir: {}
           {{- end }}

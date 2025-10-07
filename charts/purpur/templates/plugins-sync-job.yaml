@@ -32,7 +32,7 @@ spec:
               set -e
               apk add --no-cache curl wget yq jq >/dev/null 2>&1
               
-              mkdir -p /plugins
+              mkdir -p /data/plugins
               PLUGINS_CONFIG="/config/plugins.yaml"
               
               if [ ! -f "$PLUGINS_CONFIG" ]; then
@@ -77,7 +77,7 @@ spec:
               
               # Remove plugins not in the list
               echo "=== Cleaning up old plugins ==="
-              for jar in /plugins/*.jar; do
+              for jar in /data/plugins/*.jar; do
                 if [ -f "$jar" ]; then
                   BASENAME=$(basename "$jar")
                   if ! echo "$EXPECTED_PLUGINS" | grep -q "$BASENAME"; then
@@ -122,18 +122,18 @@ spec:
                   
                   if [ -n "$ASSET_ID" ] && [ "$ASSET_ID" != "null" ]; then
                     # Use GitHub API to download asset (works for private repos)
-                    API_DOWNLOAD_URL="https://api.github.com/repos/$REPO/releases/assets/$ASSET_ID"
-                    echo "  Asset ID: $ASSET_ID"
-                    echo "  API Download URL: $API_DOWNLOAD_URL"
-                    download_file "$API_DOWNLOAD_URL" "/plugins/${NAME}.jar" || echo "Failed to download $NAME"
+                  API_DOWNLOAD_URL="https://api.github.com/repos/$REPO/releases/assets/$ASSET_ID"
+                  echo "  Asset ID: $ASSET_ID"
+                  echo "  API Download URL: $API_DOWNLOAD_URL"
+                  download_file "$API_DOWNLOAD_URL" "/data/plugins/${NAME}.jar" || echo "Failed to download $NAME"
                   else
                     echo "✗ Could not find download URL for $NAME (artifact: $ARTIFACT)"
                     echo "  API Response: $(echo \"$API_RESPONSE\" | jq -c '.assets[].name' 2>/dev/null || echo 'Failed to parse')"
                   fi
                   
-                elif [ "$TYPE" = "url" ]; then
-                  URL=$(yq -r ".plugins[$i].url" "$PLUGINS_CONFIG")
-                  download_file "$URL" "/plugins/${NAME}.jar" || echo "Failed to download $NAME"
+              elif [ "$TYPE" = "url" ]; then
+                URL=$(yq -r ".plugins[$i].url" "$PLUGINS_CONFIG")
+                download_file "$URL" "/data/plugins/${NAME}.jar" || echo "Failed to download $NAME"
                   
                 else
                   echo "✗ Unknown type: $TYPE"
@@ -143,16 +143,20 @@ spec:
               done
               
               echo "=== Plugin sync completed ==="
-              ls -lh /plugins/ || true
+              ls -lh /data/plugins/ || true
           volumeMounts:
-            - name: plugins
-              mountPath: /plugins
+            - name: world
+              mountPath: /data
             - name: plugins-config
               mountPath: /config
       volumes:
-        - name: plugins
+        - name: world
           persistentVolumeClaim:
-            claimName: {{ include "purpur.fullname" . }}-plugins
+            {{- if .Values.persistence.shared }}
+            claimName: {{ include "purpur.fullname" . }}-shared-world
+            {{- else }}
+            claimName: {{ include "purpur.fullname" . }}-world
+            {{- end }}
         - name: plugins-config
           configMap:
             name: {{ include "purpur.fullname" . }}-plugins
