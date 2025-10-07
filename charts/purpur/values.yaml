@@ -57,6 +57,16 @@ plugins:
       repository: BryuggemanNikita/gr-core-plugin
       version: develop
       artifact: gr-core-plugin-1.0.0.jar
+    - name: gr-player-plugin
+      type: github
+      repository: BryuggemanNikita/gr-player-plugin
+      version: develop
+      artifact: gr-player-plugin-1.0.0.jar
+    - name: gr-race-plugin
+      type: github
+      repository: BryuggemanNikita/gr-race-plugin
+      version: develop
+      artifact: gr-race-plugin-1.0.0.jar
     - name: ProtocolLib
       type: url
       url: https://github.com/dmulloy2/ProtocolLib/releases/download/5.4.0/ProtocolLib.jar
