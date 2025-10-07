@@ -59,9 +59,7 @@ spec:
               echo "Copying plugin configs from map..."
               
               # Read mapping from ConfigMap
-              CONFIGS=$(yq '.configs | to_entries | .[] | .key + "=" + .value' /plugin-configs/configs-map.yaml)
-              
-              while IFS= read -r line; do
+              yq '.configs | to_entries | .[] | .key + "=" + .value' /plugin-configs/configs-map.yaml | while IFS= read -r line; do
                 TARGET_PATH=$(echo "$line" | cut -d= -f1)
                 SOURCE_FILE=$(echo "$line" | cut -d= -f2)
                 
@@ -73,7 +71,7 @@ spec:
                 SOURCE_KEY=$(echo "$TARGET_PATH" | tr '/' '-')
                 cp "/plugin-configs/$SOURCE_KEY" "/data/plugins/$TARGET_PATH"
                 echo "✓ Copied $TARGET_PATH"
-              done <<< "$CONFIGS"
+              done
               
               echo "✓ All plugin configs copied"
           volumeMounts:
