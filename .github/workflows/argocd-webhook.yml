@@ -23,9 +23,9 @@ jobs:
           chmod +x /usr/local/bin/argocd
           
           # Login
-          argocd login "$ARGOCD_SERVER" --auth-token "$ARGOCD_AUTH_TOKEN" --insecure
+          argocd login "$ARGOCD_SERVER" --auth-token "$ARGOCD_AUTH_TOKEN" --insecure --grpc-web
           
           # Sync app-of-apps (cascades to all child apps)
-          argocd app sync app-of-apps --prune --async
+          argocd app sync app-of-apps --prune --async --grpc-web
           
           echo "Triggered sync for entire stack via app-of-apps"
