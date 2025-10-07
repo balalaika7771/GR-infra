@@ -1,0 +1,15 @@
+{{- $configsMap := .Files.Get "configs-map.yaml" | fromYaml }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "purpur.fullname" . }}-plugins-configs
+  labels:
+    {{- include "purpur.labels" . | nindent 4 }}
+data:
+  configs-map.yaml: |
+{{ .Files.Get "configs-map.yaml" | indent 4 }}
+{{- range $targetPath, $sourceFile := $configsMap.configs }}
+  {{ $targetPath | replace "/" "-" }}: |
+{{ $.Files.Get (printf "configs/%s" $sourceFile) | indent 4 }}
+{{- end }}
+
