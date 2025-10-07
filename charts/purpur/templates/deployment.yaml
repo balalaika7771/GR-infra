@@ -20,9 +20,7 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/plugins: {{ include (print $.Template.BasePath "/plugins-config.yaml") . | sha256sum }}
-        {{- if .Values.plugins.configs }}
         checksum/plugins-configs: {{ include (print $.Template.BasePath "/plugins-configs-cm.yaml") . | sha256sum }}
-        {{- end }}
         plugins-sync-trigger: {{ now | date "20060102-150405" }}
     spec:
       tolerations:
@@ -52,27 +50,22 @@ spec:
               mountPath: /data
             - name: config-source
               mountPath: /config-source
-        {{- if .Values.plugins.configs }}
         - name: copy-plugin-configs
           image: busybox:1.36
           command: ["/bin/sh", "-c"]
           args:
             - |
               echo "Copying plugin configs..."
-              {{- range $pluginName, $files := .Values.plugins.configs }}
-              mkdir -p /data/plugins/{{ $pluginName }}
-              {{- range $fileName, $content := $files }}
-              cp /plugin-configs/{{ $pluginName }}-{{ $fileName }} /data/plugins/{{ $pluginName }}/{{ $fileName }}
-              echo "✓ Copied {{ $pluginName }}/{{ $fileName }}"
-              {{- end }}
-              {{- end }}
-              echo "Plugin configs copied"
+              mkdir -p /data/plugins/player_mechanics
+              mkdir -p /data/plugins/RPG-Races
+              cp /plugin-configs/player_mechanics-config.yml /data/plugins/player_mechanics/config.yml
+              cp /plugin-configs/RPG-Races-config.yml /data/plugins/RPG-Races/config.yml
+              echo "✓ Plugin configs copied"
           volumeMounts:
             - name: plugins
               mountPath: /data/plugins
             - name: plugin-configs
               mountPath: /plugin-configs
-        {{- end }}
       containers:
         - name: purpur
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -148,9 +141,7 @@ spec:
         - name: config-source
           configMap:
             name: {{ include "purpur.fullname" . }}-config
-        {{- if .Values.plugins.configs }}
         - name: plugin-configs
           configMap:
             name: {{ include "purpur.fullname" . }}-plugins-configs
-        {{- end }}
 

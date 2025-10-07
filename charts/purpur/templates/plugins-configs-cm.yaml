@@ -1,4 +1,3 @@
-{{- if .Values.plugins.configs }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -6,11 +5,8 @@ metadata:
   labels:
     {{- include "purpur.labels" . | nindent 4 }}
 data:
-{{- range $pluginName, $files := .Values.plugins.configs }}
-{{- range $fileName, $content := $files }}
-  {{ $pluginName }}-{{ $fileName }}: |
-{{ $content | indent 4 }}
-{{- end }}
-{{- end }}
-{{- end }}
+  player_mechanics-config.yml: |
+{{ .Files.Get "configs/player_mechanics.yml" | indent 4 }}
+  RPG-Races-config.yml: |
+{{ .Files.Get "configs/rpg-races.yml" | indent 4 }}
 
