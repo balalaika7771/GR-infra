@@ -46,6 +46,12 @@ persistence:
     path: "/var/lib/minecraft/purpur-lobby-world"
     nodeName: ""
 
+plugins:
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+
 plugin:
   enabled: false
   name: "purpur-plugin-1.0.0.jar"

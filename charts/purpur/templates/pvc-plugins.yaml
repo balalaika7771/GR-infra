@@ -1,0 +1,21 @@
+{{- if .Values.plugins.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "purpur.fullname" . }}-plugins
+  labels:
+    app.kubernetes.io/name: {{ include "purpur.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.plugins.persistence.size }}
+  {{- if .Values.plugins.persistence.storageClass }}
+  storageClassName: {{ .Values.plugins.persistence.storageClass }}
+  {{- else }}
+  storageClassName: ""
+  {{- end }}
+{{- end }}
+
