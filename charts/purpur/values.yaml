@@ -6,6 +6,7 @@ image:
 version: "1.21.5"
 
 replicaCount: 1
+revisionHistoryLimit: 3  # Keep only 3 old ReplicaSets for rollback
 
 service:
   type: ClusterIP
