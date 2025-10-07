@@ -16,6 +16,8 @@ spec:
           enabled: true
           shared: true
           storageClass: local-path
+          hostPath:
+            path: ""
         plugins:
           persistence:
             enabled: true
