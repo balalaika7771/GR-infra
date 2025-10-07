@@ -36,18 +36,12 @@ spec:
           env:
             - name: JAVA_TOOL_OPTIONS
               value: "{{ .Values.jvm.opts }}"
-            - name: FORWARDING_SECRET
-              value: "minecraft-secret-key"
             - name: EULA
               value: "TRUE"
             - name: TYPE
               value: "PURPUR"
             - name: VERSION
               value: "{{ .Values.version }}"
-            - name: ONLINE_MODE
-              value: "{{ if .Values.server.onlineMode }}TRUE{{ else }}FALSE{{ end }}"
-            - name: VELOCITY_SECRET
-              value: "{{ .Values.server.velocity.secret }}"
           ports:
             - name: mc
               containerPort: 25565
