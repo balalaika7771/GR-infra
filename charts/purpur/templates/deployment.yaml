@@ -20,6 +20,7 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/plugins: {{ include (print $.Template.BasePath "/plugins-config.yaml") . | sha256sum }}
+        plugins-sync-trigger: {{ now | date "20060102-150405" }}
     spec:
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
