@@ -4,6 +4,7 @@
 configs:
   # Server configs
   server.properties: server.properties
+  eula.txt: eula.txt
   config/spigot.yml: spigot.yml
   config/paper-global.yml: paper-global.yml
   # Plugin configs
