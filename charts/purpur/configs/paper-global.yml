@@ -1,0 +1,6 @@
+proxies:
+  velocity:
+    enabled: true
+    online-mode: false
+    secret: "minecraft-secret-key"
+

@@ -1,9 +1,13 @@
-# Mapping of config files to their target paths in /data/plugins/
-# Format: "target/path/file.ext": "source-file.yml"
+# Mapping of config files to their target paths
+# Format: "target/path/file.ext": "source-file-in-configs-dir"
 
 configs:
-  core_plugin/api_config.yaml: api_config.yaml
-  # Add more configs as needed:
-  # SomePlugin/settings.json: some-plugin-settings.yml
-  # AnotherPlugin/data/config.txt: another-config.yml
+  # Server configs
+  server.properties: server.properties
+  config/spigot.yml: spigot.yml
+  config/paper-global.yml: paper-global.yml
+  # Plugin configs
+  plugins/core_plugin/api_config.yaml: api_config.yaml
+  # Add more as needed:
+  # plugins/SomePlugin/config.yml: some-plugin-config.yml
 

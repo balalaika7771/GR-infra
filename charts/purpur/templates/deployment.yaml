@@ -33,20 +33,39 @@ spec:
         runAsNonRoot: false
         fsGroup: 10001
       initContainers:
-        - name: copy-config
-          image: busybox:1.36
+        - name: copy-configs
+          image: alpine:3.19
           command: ["/bin/sh", "-c"]
           args:
             - |
-              mkdir -p /data/config
-              # Copy only paper-global.yml (Velocity config)
-              cp /config-source/paper-global.yml /data/config/paper-global.yml
-              echo "Copied paper-global.yml for Velocity support"
+              apk add --no-cache yq >/dev/null 2>&1
+              echo "=== Applying configs from mapping ==="
+              
+              MAP="/mapping/mapping.yaml"
+              if [ ! -f "$MAP" ]; then
+                echo "configs-map.yaml not found, skipping"
+                exit 0
+              fi
+              
+              # Read each mapping and copy files
+              yq -r '.configs | to_entries | .[] | .key + " " + .value' "$MAP" | while read TARGET SOURCE; do
+                if [ -f "/configs/$SOURCE" ]; then
+                  mkdir -p "/data/$(dirname $TARGET)"
+                  cp "/configs/$SOURCE" "/data/$TARGET"
+                  echo "✓ Copied $SOURCE -> /data/$TARGET"
+                else
+                  echo "✗ Source not found: $SOURCE"
+                fi
+              done
+              
+              echo "Config files applied"
           volumeMounts:
             - name: world
               mountPath: /data
-            - name: config-source
-              mountPath: /config-source
+            - name: configs
+              mountPath: /configs
+            - name: configs-map
+              mountPath: /mapping
         - name: copy-plugin-configs
           image: alpine:3.19
           command: ["/bin/sh", "-c"]
@@ -101,27 +120,7 @@ spec:
               mountPath: /data
             - name: plugins
               mountPath: /data/plugins
-            - name: config-source
-              mountPath: /config-source
-              readOnly: true
           lifecycle:
-            postStart:
-              exec:
-                command:
-                  - /bin/sh
-                  - -c
-                  - |
-                    # Wait for Purpur to generate configs
-                    sleep 10
-                    # Apply custom overrides if they exist
-                    if [ -f /config-source/server-overrides.properties ]; then
-                      cat /config-source/server-overrides.properties >> /data/server.properties
-                      echo "Applied server.properties overrides"
-                    fi
-                    if [ -f /config-source/spigot-overrides.yml ]; then
-                      cat /config-source/spigot-overrides.yml >> /data/spigot.yml
-                      echo "Applied spigot.yml overrides"
-                    fi
             preStop:
               exec:
                 command:
@@ -168,10 +167,13 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-        - name: config-source
+        - name: configs
           configMap:
-            name: {{ include "purpur.fullname" . }}-config
-        - name: plugin-configs
+            name: {{ include "purpur.fullname" . }}-configs
+        - name: configs-map
           configMap:
-            name: {{ include "purpur.fullname" . }}-plugins-configs
+            name: {{ include "purpur.fullname" . }}-configs-map
+        - name: plugins-config
+          configMap:
+            name: {{ include "purpur.fullname" . }}-plugins
 
