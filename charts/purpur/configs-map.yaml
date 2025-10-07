@@ -4,6 +4,7 @@
 configs:
   player_mechanics/config.yml: player_mechanics.yml
   RPG-Races/config.yml: rpg-races.yml
+  core_plugin/api_config.yaml: api_config.yaml
   # Add more configs as needed:
   # SomePlugin/settings.json: some-plugin-settings.yml
   # AnotherPlugin/data/config.txt: another-config.yml
