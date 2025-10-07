@@ -1,3 +1,0 @@
-http-client:
-  base-url: "http://localhostOLOLO:8080/api/v1"
-  connect-timeout-seconds: 10
