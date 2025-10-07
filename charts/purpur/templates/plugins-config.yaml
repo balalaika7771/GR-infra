@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "purpur.fullname" . }}-plugins
+  labels:
+    {{- include "purpur.labels" . | nindent 4 }}
+data:
+  plugins.yaml: |
+    plugins:
+      # Internal plugins (from GitHub releases)
+      - name: gr-core-plugin
+        type: github
+        repository: BryuggemanNikita/gr-core-plugin
+        version: latest  # or specific tag/release
+        artifact: gr-core-plugin.jar
+      
+      # External plugins (direct URL)
+      # - name: ViaVersion
+      #   type: url
+      #   url: https://ci.viaversion.com/job/ViaVersion/lastSuccessfulBuild/artifact/build/libs/ViaVersion-4.9.3.jar
+      
+      # - name: LuckPerms
+      #   type: url
+      #   url: https://download.luckperms.net/1542/bukkit/loader/LuckPerms-Bukkit-5.4.131.jar
+

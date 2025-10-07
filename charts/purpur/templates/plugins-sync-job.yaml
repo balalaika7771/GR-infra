@@ -1,0 +1,106 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "purpur.fullname" . }}-plugins-sync-{{ now | date "20060102-150405" }}
+  labels:
+    {{- include "purpur.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "purpur.name" . }}-plugins-sync
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: plugins-sync
+          image: alpine:3.19
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - |
+              set -e
+              apk add --no-cache curl wget yq jq >/dev/null 2>&1
+              
+              mkdir -p /plugins
+              PLUGINS_CONFIG="/config/plugins.yaml"
+              
+              if [ ! -f "$PLUGINS_CONFIG" ]; then
+                echo "plugins.yaml not found, skipping"
+                exit 0
+              fi
+              
+              echo "=== Syncing plugins from $PLUGINS_CONFIG ==="
+              
+              download_file() {
+                URL="$1"; OUT="$2"
+                echo "→ Downloading: $URL"
+                rm -f "$OUT" 2>/dev/null || true
+                curl -fsSL -o "$OUT" "$URL" || { echo "✗ Failed: $URL"; return 1; }
+                if [ -f "$OUT" ] && [ -s "$OUT" ]; then
+                  echo "✓ Saved: $OUT"
+                else
+                  echo "✗ Empty file: $OUT"
+                  return 1
+                fi
+              }
+              
+              COUNT=$(yq '.plugins | length' "$PLUGINS_CONFIG")
+              echo "Found $COUNT plugins in config"
+              
+              i=0
+              while [ "$i" -lt "$COUNT" ]; do
+                NAME=$(yq -r ".plugins[$i].name" "$PLUGINS_CONFIG")
+                TYPE=$(yq -r ".plugins[$i].type" "$PLUGINS_CONFIG")
+                
+                echo "[$i] Processing: $NAME (type: $TYPE)"
+                
+                if [ "$TYPE" = "github" ]; then
+                  REPO=$(yq -r ".plugins[$i].repository" "$PLUGINS_CONFIG")
+                  VERSION=$(yq -r ".plugins[$i].version" "$PLUGINS_CONFIG")
+                  ARTIFACT=$(yq -r ".plugins[$i].artifact" "$PLUGINS_CONFIG")
+                  
+                  if [ "$VERSION" = "latest" ]; then
+                    # Get latest release
+                    RELEASE_URL="https://api.github.com/repos/$REPO/releases/latest"
+                    DOWNLOAD_URL=$(curl -fsSL "$RELEASE_URL" | jq -r ".assets[] | select(.name | contains(\"$ARTIFACT\")) | .browser_download_url" | head -n 1)
+                  else
+                    # Specific version/tag
+                    DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$ARTIFACT"
+                  fi
+                  
+                  if [ -n "$DOWNLOAD_URL" ]; then
+                    download_file "$DOWNLOAD_URL" "/plugins/${NAME}.jar" || echo "Failed to download $NAME"
+                  else
+                    echo "✗ Could not find download URL for $NAME"
+                  fi
+                  
+                elif [ "$TYPE" = "url" ]; then
+                  URL=$(yq -r ".plugins[$i].url" "$PLUGINS_CONFIG")
+                  download_file "$URL" "/plugins/${NAME}.jar" || echo "Failed to download $NAME"
+                  
+                else
+                  echo "✗ Unknown type: $TYPE"
+                fi
+                
+                i=$((i+1))
+              done
+              
+              echo "=== Plugin sync completed ==="
+              ls -lh /plugins/ || true
+          volumeMounts:
+            - name: plugins
+              mountPath: /plugins
+            - name: plugins-config
+              mountPath: /config
+      volumes:
+        - name: plugins
+          persistentVolumeClaim:
+            claimName: {{ include "purpur.fullname" . }}-plugins
+        - name: plugins-config
+          configMap:
+            name: {{ include "purpur.fullname" . }}-plugins
+
