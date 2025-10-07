@@ -1,8 +1,13 @@
 name: ArgoCD Sync
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to sync from'
+        required: true
+        default: 'main'
+        type: string
 
 jobs:
   notify-argocd:
@@ -12,6 +17,7 @@ jobs:
         env:
           ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
           ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+          TARGET_BRANCH: ${{ github.event.inputs.branch }}
         run: |
           if [ -z "$ARGOCD_SERVER" ] || [ -z "$ARGOCD_AUTH_TOKEN" ]; then
             echo "Missing secrets ARGOCD_SERVER or ARGOCD_AUTH_TOKEN" >&2
@@ -22,8 +28,12 @@ jobs:
           curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
           chmod +x /usr/local/bin/argocd
           
-          # Use token directly without login
-          export ARGOCD_AUTH_TOKEN="$ARGOCD_AUTH_TOKEN"
+          # Update app-of-apps to use selected branch
+          echo "Switching app-of-apps to branch: $TARGET_BRANCH"
+          argocd app set app-of-apps --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_AUTH_TOKEN" --insecure --grpc-web --revision "$TARGET_BRANCH"
+          
+          # Sync all apps
+          echo "Syncing entire stack from branch: $TARGET_BRANCH"
           argocd app sync app-of-apps --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_AUTH_TOKEN" --insecure --grpc-web --prune --async
           
-          echo "Triggered sync for entire stack via app-of-apps"
+          echo "Triggered sync for entire stack from branch $TARGET_BRANCH via app-of-apps"
