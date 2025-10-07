@@ -8,12 +8,24 @@ jobs:
   notify-argocd:
     runs-on: ubuntu-latest
     steps:
-      - name: Send webhook to Argo CD
+      - name: Trigger Argo CD sync for entire stack
         env:
-          ARGOCD_WEBHOOK_URL: ${{ secrets.ARGOCD_WEBHOOK_URL }}
+          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
         run: |
-          if [ -z "$ARGOCD_WEBHOOK_URL" ]; then
-            echo "Missing secret ARGOCD_WEBHOOK_URL" >&2
+          if [ -z "$ARGOCD_SERVER" ] || [ -z "$ARGOCD_AUTH_TOKEN" ]; then
+            echo "Missing secrets ARGOCD_SERVER or ARGOCD_AUTH_TOKEN" >&2
             exit 1
           fi
-          curl -sS -X POST "$ARGOCD_WEBHOOK_URL" -H 'Content-Type: application/json' -d '{"ref":"refs/heads/main"}'
+          
+          # Install argocd CLI
+          curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+          
+          # Login
+          argocd login "$ARGOCD_SERVER" --auth-token "$ARGOCD_AUTH_TOKEN" --insecure
+          
+          # Sync app-of-apps (cascades to all child apps)
+          argocd app sync app-of-apps --prune --async
+          
+          echo "Triggered sync for entire stack via app-of-apps"
