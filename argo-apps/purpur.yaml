@@ -16,6 +16,10 @@ spec:
           enabled: true
           shared: true
           storageClass: local-path
+        plugins:
+          persistence:
+            enabled: true
+            storageClass: local-path
   destination:
     server: https://kubernetes.default.svc
     namespace: minecraft
