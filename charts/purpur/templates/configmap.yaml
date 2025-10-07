@@ -9,10 +9,12 @@ data:
         enabled: {{ .Values.server.velocity.enabled | default true }}
         online-mode: {{ .Values.server.onlineMode | default false }}
         secret: {{ .Values.server.velocity.secret | quote }}
-  {{- if .Values.server.overrides }}
+  {{- if .Values.server.propertiesOverrides }}
   server-overrides.properties: |
-{{ .Values.server.overrides.serverProperties | indent 4 }}
+{{ .Values.server.propertiesOverrides | indent 4 }}
+  {{- end }}
+  {{- if .Values.server.spigotOverrides }}
   spigot-overrides.yml: |
-{{ .Values.server.overrides.spigotYml | indent 4 }}
+{{ .Values.server.spigotOverrides | indent 4 }}
   {{- end }}
 

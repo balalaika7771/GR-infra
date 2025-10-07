@@ -31,9 +31,7 @@ server:
   velocity:
     enabled: true
     secret: "minecraft-secret-key"
-  # Custom overrides applied on top of Purpur auto-generated configs
-  overrides:
-    serverProperties: |
+  propertiesOverrides: |
       # Custom server.properties overrides (appended after Purpur generates defaults)
       difficulty=easy
       gamemode=survival
@@ -43,7 +41,7 @@ server:
       spawn-monsters=false
       pvp=false
       motd=A Minecraft Server
-    spigotYml: |
+  spigotOverrides: |
       settings:
         debug: false
         bungeecord: false
