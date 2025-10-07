@@ -82,16 +82,23 @@ spec:
                     RELEASE_URL="https://api.github.com/repos/$REPO/releases/tags/$VERSION"
                   fi
                   
+                  echo "  Release API: $RELEASE_URL"
                   if [ -n "$GITHUB_TOKEN" ]; then
-                    DOWNLOAD_URL=$(curl -fsSL -H "Authorization: token $GITHUB_TOKEN" "$RELEASE_URL" | jq -r ".assets[] | select(.name | contains(\"$ARTIFACT\")) | .browser_download_url" | head -n 1)
+                    echo "  Using GitHub token for API request"
+                    API_RESPONSE=$(curl -fsSL -H "Authorization: token $GITHUB_TOKEN" "$RELEASE_URL")
                   else
-                    DOWNLOAD_URL=$(curl -fsSL "$RELEASE_URL" | jq -r ".assets[] | select(.name | contains(\"$ARTIFACT\")) | .browser_download_url" | head -n 1)
+                    echo "  No GitHub token, using public API"
+                    API_RESPONSE=$(curl -fsSL "$RELEASE_URL")
                   fi
                   
-                  if [ -n "$DOWNLOAD_URL" ]; then
+                  DOWNLOAD_URL=$(echo "$API_RESPONSE" | jq -r ".assets[] | select(.name | contains(\"$ARTIFACT\")) | .browser_download_url" | head -n 1)
+                  
+                  if [ -n "$DOWNLOAD_URL" ] && [ "$DOWNLOAD_URL" != "null" ]; then
+                    echo "  Asset URL: $DOWNLOAD_URL"
                     download_file "$DOWNLOAD_URL" "/plugins/${NAME}.jar" || echo "Failed to download $NAME"
                   else
-                    echo "✗ Could not find download URL for $NAME"
+                    echo "✗ Could not find download URL for $NAME (artifact: $ARTIFACT)"
+                    echo "  API Response: $(echo \"$API_RESPONSE\" | jq -c '.assets[].name' 2>/dev/null || echo 'Failed to parse')"
                   fi
                   
                 elif [ "$TYPE" = "url" ]; then
