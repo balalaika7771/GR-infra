@@ -11,8 +11,8 @@ data:
       - name: gr-core-plugin
         type: github
         repository: BryuggemanNikita/gr-core-plugin
-        version: latest  # or specific tag/release
-        artifact: gr-core-plugin.jar
+        version: develop  # or develop-4422338 for specific commit
+        artifact: gr-core-plugin-1.0.0.jar
       
       # External plugins (direct URL)
       # - name: ViaVersion
