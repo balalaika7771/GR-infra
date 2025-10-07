@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tcp-services
+  namespace: ingress-nginx
+data:
+  # Minecraft port forwarding to velocity
+  "25565": "minecraft/velocity:25565"
+
