@@ -1,3 +1,4 @@
+{{- $configsMap := .Files.Get "configs-map.yaml" | fromYaml }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -5,8 +6,10 @@ metadata:
   labels:
     {{- include "purpur.labels" . | nindent 4 }}
 data:
-  player_mechanics-config.yml: |
-{{ .Files.Get "configs/player_mechanics.yml" | indent 4 }}
-  RPG-Races-config.yml: |
-{{ .Files.Get "configs/rpg-races.yml" | indent 4 }}
+  configs-map.yaml: |
+{{ .Files.Get "configs-map.yaml" | indent 4 }}
+{{- range $targetPath, $sourceFile := $configsMap.configs }}
+  {{ $targetPath | replace "/" "-" }}: |
+{{ $.Files.Get (printf "configs/%s" $sourceFile) | indent 4 }}
+{{- end }}
 

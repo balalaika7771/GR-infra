@@ -51,16 +51,31 @@ spec:
             - name: config-source
               mountPath: /config-source
         - name: copy-plugin-configs
-          image: busybox:1.36
+          image: alpine:3.19
           command: ["/bin/sh", "-c"]
           args:
             - |
-              echo "Copying plugin configs..."
-              mkdir -p /data/plugins/player_mechanics
-              mkdir -p /data/plugins/RPG-Races
-              cp /plugin-configs/player_mechanics-config.yml /data/plugins/player_mechanics/config.yml
-              cp /plugin-configs/RPG-Races-config.yml /data/plugins/RPG-Races/config.yml
-              echo "✓ Plugin configs copied"
+              apk add --no-cache yq >/dev/null 2>&1
+              echo "Copying plugin configs from map..."
+              
+              # Read mapping from ConfigMap
+              CONFIGS=$(yq '.configs | to_entries | .[] | .key + "=" + .value' /plugin-configs/configs-map.yaml)
+              
+              while IFS= read -r line; do
+                TARGET_PATH=$(echo "$line" | cut -d= -f1)
+                SOURCE_FILE=$(echo "$line" | cut -d= -f2)
+                
+                # Create target directory
+                TARGET_DIR=$(dirname "/data/plugins/$TARGET_PATH")
+                mkdir -p "$TARGET_DIR"
+                
+                # Copy config with normalized key name
+                SOURCE_KEY=$(echo "$TARGET_PATH" | tr '/' '-')
+                cp "/plugin-configs/$SOURCE_KEY" "/data/plugins/$TARGET_PATH"
+                echo "✓ Copied $TARGET_PATH"
+              done <<< "$CONFIGS"
+              
+              echo "✓ All plugin configs copied"
           volumeMounts:
             - name: plugins
               mountPath: /data/plugins
