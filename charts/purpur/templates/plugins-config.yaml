@@ -15,7 +15,7 @@ data:
         artifact: gr-core-plugin-1.0.0.jar
       
       # External plugins (direct URL)
-      - name: ProtocolLib
+      - name: ProtocolLib.jar
         type: url
         url: https://github.com/dmulloy2/ProtocolLib/releases/download/5.4.0/ProtocolLib.jar
       
