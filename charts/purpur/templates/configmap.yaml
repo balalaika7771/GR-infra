@@ -4,12 +4,12 @@ metadata:
   name: {{ include "purpur.fullname" . }}-config
 data:
   paper-global.yml: |
-    verbose: false
+    proxies:
+      velocity:
+        enabled: {{ .Values.server.velocity.enabled | default true }}
+        online-mode: {{ .Values.server.onlineMode | default false }}
+        secret: {{ .Values.server.velocity.secret | quote }}
   spigot.yml: |
     settings:
       restart-on-crash: true
-  server.properties: |
-    online-mode={{ .Values.server.onlineMode | default false }}
-    velocity-support=true
-    velocity-secret={{ .Values.server.velocity.secret }}
 
