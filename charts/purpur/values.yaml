@@ -26,9 +26,6 @@ resources:
 health:
   port: 8080
 
-# All server configs (server.properties, spigot.yml, paper-global.yml) 
-# are now managed via configs/ directory and configs-map.yaml
-
 persistence:
   enabled: true
   size: 10Gi

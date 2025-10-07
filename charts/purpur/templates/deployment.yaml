@@ -18,9 +18,8 @@ spec:
         app.kubernetes.io/name: {{ include "purpur.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/configs: {{ include (print $.Template.BasePath "/configs-cm.yaml") . | sha256sum }}
         checksum/plugins: {{ include (print $.Template.BasePath "/plugins-config.yaml") . | sha256sum }}
-        checksum/plugins-configs: {{ include (print $.Template.BasePath "/plugins-configs-cm.yaml") . | sha256sum }}
         plugins-sync-trigger: {{ now | date "20060102-150405" }}
     spec:
       tolerations:
@@ -66,35 +65,6 @@ spec:
               mountPath: /configs
             - name: configs-map
               mountPath: /mapping
-        - name: copy-plugin-configs
-          image: alpine:3.19
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              apk add --no-cache yq >/dev/null 2>&1
-              echo "Copying plugin configs from map..."
-              
-              # Read mapping from ConfigMap
-              yq '.configs | to_entries | .[] | .key + "=" + .value' /plugin-configs/configs-map.yaml | while IFS= read -r line; do
-                TARGET_PATH=$(echo "$line" | cut -d= -f1)
-                SOURCE_FILE=$(echo "$line" | cut -d= -f2)
-                
-                # Create target directory
-                TARGET_DIR=$(dirname "/data/plugins/$TARGET_PATH")
-                mkdir -p "$TARGET_DIR"
-                
-                # Copy config with normalized key name
-                SOURCE_KEY=$(echo "$TARGET_PATH" | tr '/' '-')
-                cp "/plugin-configs/$SOURCE_KEY" "/data/plugins/$TARGET_PATH"
-                echo "✓ Copied $TARGET_PATH"
-              done
-              
-              echo "✓ All plugin configs copied"
-          volumeMounts:
-            - name: plugins
-              mountPath: /data/plugins
-            - name: plugin-configs
-              mountPath: /plugin-configs
       containers:
         - name: purpur
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
