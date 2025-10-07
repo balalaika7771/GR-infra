@@ -1,37 +1,23 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ingress-nginx-controller
-  namespace: ingress-nginx
-spec:
-  template:
-    spec:
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
-      containers:
-        - name: controller
-          args:
-            - /nginx-ingress-controller
-            - --publish-service=$(POD_NAMESPACE)/ingress-nginx-controller
-            - --election-id=ingress-nginx-leader
-            - --controller-class=k8s.io/ingress-nginx
-            - --ingress-class=nginx
-            - --configmap=$(POD_NAMESPACE)/ingress-nginx-controller
-            - --validating-webhook=:8443
-            - --validating-webhook-certificate=/usr/local/certificates/cert
-            - --validating-webhook-key=/usr/local/certificates/key
-            - --tcp-services-configmap=$(POD_NAMESPACE)/tcp-services
-          ports:
-            - name: http
-              containerPort: 80
-              protocol: TCP
-              hostPort: 80
-            - name: https
-              containerPort: 443
-              protocol: TCP
-              hostPort: 443
-            - name: minecraft
-              containerPort: 25565
-              protocol: TCP
-              hostPort: 25565
+- op: replace
+  path: /spec/template/spec/hostNetwork
+  value: true
+- op: replace
+  path: /spec/template/spec/dnsPolicy
+  value: ClusterFirstWithHostNet
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --tcp-services-configmap=$(POD_NAMESPACE)/tcp-services
+- op: add
+  path: /spec/template/spec/containers/0/ports/-
+  value:
+    name: minecraft
+    containerPort: 25565
+    protocol: TCP
+    hostPort: 25565
+- op: replace
+  path: /spec/template/spec/containers/0/ports/0/hostPort
+  value: 80
+- op: replace
+  path: /spec/template/spec/containers/0/ports/1/hostPort
+  value: 443
 
