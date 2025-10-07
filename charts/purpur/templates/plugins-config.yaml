@@ -15,9 +15,9 @@ data:
         artifact: gr-core-plugin-1.0.0.jar
       
       # External plugins (direct URL)
-      # - name: ViaVersion
-      #   type: url
-      #   url: https://ci.viaversion.com/job/ViaVersion/lastSuccessfulBuild/artifact/build/libs/ViaVersion-4.9.3.jar
+       - name: ProtocolLib
+         type: url
+         url: https://github.com/dmulloy2/ProtocolLib/releases/download/5.4.0/ProtocolLib.jar
       
       # - name: LuckPerms
       #   type: url
