@@ -14,7 +14,6 @@ spec:
       values: |
         persistence:
           enabled: true
-          shared: true
           storageClass: local-path
   destination:
     server: https://kubernetes.default.svc

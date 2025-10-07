@@ -1,45 +1,4 @@
 {{- if .Values.persistence.enabled }}
-{{- if .Values.persistence.hostPath.path }}
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: {{ include "purpur.fullname" . }}-world-pv
-spec:
-  capacity:
-    storage: {{ .Values.persistence.size }}
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: ""
-  {{- if .Values.persistence.hostPath.nodeName }}
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: kubernetes.io/hostname
-              operator: In
-              values:
-                - {{ .Values.persistence.hostPath.nodeName | quote }}
-  {{- end }}
-  hostPath:
-    path: {{ .Values.persistence.hostPath.path | quote }}
-    type: DirectoryOrCreate
-
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "purpur.fullname" . }}-data
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ .Values.persistence.size }}
-  volumeName: {{ include "purpur.fullname" . }}-world-pv
-  storageClassName: ""
-{{- else if .Values.persistence.shared }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -58,25 +17,5 @@ spec:
   {{- else }}
   storageClassName: ""
   {{- end }}
-{{- else }}
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "purpur.fullname" . }}-world
-  labels:
-    app.kubernetes.io/name: {{ include "purpur.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ .Values.persistence.size }}
-  {{- if .Values.persistence.storageClass }}
-  storageClassName: {{ .Values.persistence.storageClass }}
-  {{- else }}
-  storageClassName: ""
-  {{- end }}
-{{- end }}
 {{- end }}
 

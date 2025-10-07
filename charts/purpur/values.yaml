@@ -31,7 +31,6 @@ persistence:
   enabled: true
   size: 10Gi
   storageClass: ""
-  shared: true
 
 plugins:
   list:
