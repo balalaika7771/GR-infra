@@ -41,10 +41,10 @@ spec:
               mkdir -p /data/config
               cp /config-source/paper-global.yml /data/config/paper-global.yml
               cp /config-source/spigot.yml /data/spigot.yml
+              cp /config-source/server.properties /data/server.properties
               echo "velocity-support=true" >> /data/server.properties
               echo "velocity-secret={{ .Values.server.velocity.secret }}" >> /data/server.properties
-              echo "online-mode={{ .Values.server.onlineMode | default false }}" >> /data/server.properties
-              echo "Config files copied and server.properties updated"
+              echo "Config files copied from ConfigMap"
           volumeMounts:
             - name: world
               mountPath: /data

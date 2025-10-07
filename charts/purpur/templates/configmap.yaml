@@ -11,5 +11,27 @@ data:
         secret: {{ .Values.server.velocity.secret | quote }}
   spigot.yml: |
     settings:
-      restart-on-crash: true
+      debug: false
+      bungeecord: false
+      restart-on-crash: {{ .Values.server.spigot.restartOnCrash | default true }}
+      netty-threads: {{ .Values.server.spigot.nettyThreads | default 4 }}
+      moved-too-quickly-multiplier: {{ .Values.server.spigot.movedTooQuicklyMultiplier | default 10.0 }}
+      moved-wrongly-threshold: {{ .Values.server.spigot.movedWronglyThreshold | default 0.0625 }}
+      timeout-time: {{ .Values.server.spigot.timeoutTime | default 60 }}
+  server.properties: |
+    # Generated from values.yaml
+    difficulty={{ .Values.server.properties.difficulty | default "easy" }}
+    gamemode={{ .Values.server.properties.gamemode | default "survival" }}
+    max-players={{ .Values.server.properties.maxPlayers | default 20 }}
+    view-distance={{ .Values.server.properties.viewDistance | default 10 }}
+    simulation-distance={{ .Values.server.properties.simulationDistance | default 10 }}
+    spawn-monsters={{ .Values.server.properties.spawnMonsters | default false }}
+    spawn-animals={{ .Values.server.properties.spawnAnimals | default true }}
+    pvp={{ .Values.server.properties.pvp | default false }}
+    allow-flight={{ .Values.server.properties.allowFlight | default false }}
+    allow-nether={{ .Values.server.properties.allowNether | default true }}
+    generate-structures={{ .Values.server.properties.generateStructures | default true }}
+    level-type={{ .Values.server.properties.levelType | default "minecraft:normal" }}
+    motd={{ .Values.server.properties.motd | default "A Minecraft Server" }}
+    online-mode={{ .Values.server.onlineMode | default false }}
 

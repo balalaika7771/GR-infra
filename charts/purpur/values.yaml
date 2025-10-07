@@ -32,6 +32,26 @@ server:
     enabled: true
     secret: "minecraft-secret-key"
     forwardingMode: "modern"
+  properties:
+    difficulty: easy
+    gamemode: survival
+    maxPlayers: 20
+    viewDistance: 10
+    simulationDistance: 10
+    spawnMonsters: false
+    spawnAnimals: true
+    pvp: false
+    allowFlight: false
+    allowNether: true
+    generateStructures: true
+    levelType: "minecraft:normal"
+    motd: "A Minecraft Server"
+  spigot:
+    restartOnCrash: true
+    movedTooQuicklyMultiplier: 10.0
+    movedWronglyThreshold: 0.0625
+    timeoutTime: 60
+    nettyThreads: 4
 
 persistence:
   enabled: true
