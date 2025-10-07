@@ -65,6 +65,30 @@ spec:
               COUNT=$(yq '.plugins | length' "$PLUGINS_CONFIG")
               echo "Found $COUNT plugins in config"
               
+              # Build list of expected plugin files
+              EXPECTED_PLUGINS=""
+              i=0
+              while [ "$i" -lt "$COUNT" ]; do
+                NAME=$(yq -r ".plugins[$i].name" "$PLUGINS_CONFIG")
+                EXPECTED_PLUGINS="$EXPECTED_PLUGINS${NAME}.jar "
+                i=$((i+1))
+              done
+              echo "Expected plugins: $EXPECTED_PLUGINS"
+              
+              # Remove plugins not in the list
+              echo "=== Cleaning up old plugins ==="
+              for jar in /plugins/*.jar; do
+                if [ -f "$jar" ]; then
+                  BASENAME=$(basename "$jar")
+                  if ! echo "$EXPECTED_PLUGINS" | grep -q "$BASENAME"; then
+                    echo "✗ Removing: $BASENAME (not in plugins.yaml)"
+                    rm -f "$jar"
+                  fi
+                fi
+              done
+              
+              # Download plugins
+              echo "=== Downloading plugins ==="
               i=0
               while [ "$i" -lt "$COUNT" ]; do
                 NAME=$(yq -r ".plugins[$i].name" "$PLUGINS_CONFIG")
