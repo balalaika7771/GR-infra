@@ -26,13 +26,8 @@ resources:
 health:
   port: 8080
 
-server:
-  onlineMode: false
-  velocity:
-    enabled: true
-    secret: "minecraft-secret-key"
-  # All server configs (server.properties, spigot.yml, paper-global.yml) 
-  # are now managed via configs/ directory and configs-map.yaml
+# All server configs (server.properties, spigot.yml, paper-global.yml) 
+# are now managed via configs/ directory and configs-map.yaml
 
 persistence:
   enabled: true
