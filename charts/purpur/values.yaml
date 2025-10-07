@@ -51,6 +51,15 @@ plugins:
     enabled: true
     size: 5Gi
     storageClass: ""
+  list:
+    - name: gr-core-plugin
+      type: github
+      repository: BryuggemanNikita/gr-core-plugin
+      version: develop
+      artifact: gr-core-plugin-1.0.0.jar
+    - name: ProtocolLib
+      type: url
+      url: https://github.com/dmulloy2/ProtocolLib/releases/download/5.4.0/ProtocolLib.jar
 
 plugin:
   enabled: false

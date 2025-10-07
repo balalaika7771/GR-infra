@@ -7,14 +7,4 @@ metadata:
 data:
   plugins.yaml: |
     plugins:
-      # Internal plugins (from GitHub releases)
-      - name: gr-core-plugin
-        type: github
-        repository: BryuggemanNikita/gr-core-plugin
-        version: develop  # or develop-4422338 for specific commit
-        artifact: gr-core-plugin-1.0.0.jar
-      
-      # External plugins (direct URL)
-      - name: ProtocolLib.jar
-        type: url
-        url: https://github.com/dmulloy2/ProtocolLib/releases/download/5.4.0/ProtocolLib.jar
+{{ toYaml .Values.plugins.list | indent 6 }}
