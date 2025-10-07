@@ -22,10 +22,8 @@ jobs:
           curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
           chmod +x /usr/local/bin/argocd
           
-          # Login
-          argocd login "$ARGOCD_SERVER" --auth-token "$ARGOCD_AUTH_TOKEN" --insecure --grpc-web
-          
-          # Sync app-of-apps (cascades to all child apps)
-          argocd app sync app-of-apps --prune --async --grpc-web
+          # Use token directly without login
+          export ARGOCD_AUTH_TOKEN="$ARGOCD_AUTH_TOKEN"
+          argocd app sync app-of-apps --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_AUTH_TOKEN" --insecure --grpc-web --prune --async
           
           echo "Triggered sync for entire stack via app-of-apps"
