@@ -47,11 +47,30 @@ server:
     levelType: "minecraft:normal"
     motd: "A Minecraft Server"
   spigot:
-    restartOnCrash: true
-    movedTooQuicklyMultiplier: 10.0
-    movedWronglyThreshold: 0.0625
-    timeoutTime: 60
-    nettyThreads: 4
+    settings:
+      debug: false
+      bungeecord: false
+      restartOnCrash: true
+      nettyThreads: 4
+      movedTooQuicklyMultiplier: 10.0
+      movedWronglyThreshold: 0.0625
+      timeoutTime: 60
+      logVillagerDeaths: true
+      logNamedDeaths: true
+    worldSettings:
+      mobSpawnRange: 8
+      itemDespawnRate: 6000
+      arrowDespawnRate: 1200
+      viewDistance: default
+      simulationDistance: default
+      nerfSpawnerMobs: false
+      entityActivationRange:
+        animals: 32
+        monsters: 32
+        raiders: 64
+        misc: 16
+        water: 16
+        villagers: 32
 
 persistence:
   enabled: true
