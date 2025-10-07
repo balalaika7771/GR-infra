@@ -30,7 +30,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "purpur.fullname" . }}-shared-world
+  name: {{ include "purpur.fullname" . }}-data
 spec:
   accessModes:
     - ReadWriteOnce
@@ -43,7 +43,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "purpur.fullname" . }}-shared-world
+  name: {{ include "purpur.fullname" . }}-data
   labels:
     app.kubernetes.io/name: {{ include "purpur.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}

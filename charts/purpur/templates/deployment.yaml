@@ -119,13 +119,8 @@ spec:
       volumes:
         - name: world
           {{- if .Values.persistence.enabled }}
-          {{- if .Values.persistence.shared }}
           persistentVolumeClaim:
-            claimName: {{ include "purpur.fullname" . }}-shared-world
-          {{- else }}
-          persistentVolumeClaim:
-            claimName: {{ include "purpur.fullname" . }}-world
-          {{- end }}
+            claimName: {{ include "purpur.fullname" . }}-data
           {{- else }}
           emptyDir: {}
           {{- end }}

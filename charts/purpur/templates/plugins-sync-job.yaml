@@ -152,11 +152,7 @@ spec:
       volumes:
         - name: world
           persistentVolumeClaim:
-            {{- if .Values.persistence.shared }}
-            claimName: {{ include "purpur.fullname" . }}-shared-world
-            {{- else }}
-            claimName: {{ include "purpur.fullname" . }}-world
-            {{- end }}
+            claimName: {{ include "purpur.fullname" . }}-data
         - name: plugins-config
           configMap:
             name: {{ include "purpur.fullname" . }}-plugins
