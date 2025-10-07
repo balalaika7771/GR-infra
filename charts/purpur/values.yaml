@@ -47,30 +47,23 @@ server:
     levelType: "minecraft:normal"
     motd: "A Minecraft Server"
   spigot:
-    settings:
-      debug: false
-      bungeecord: false
-      restartOnCrash: true
-      nettyThreads: 4
-      movedTooQuicklyMultiplier: 10.0
-      movedWronglyThreshold: 0.0625
-      timeoutTime: 60
-      logVillagerDeaths: true
-      logNamedDeaths: true
-    worldSettings:
-      mobSpawnRange: 8
-      itemDespawnRate: 6000
-      arrowDespawnRate: 1200
-      viewDistance: default
-      simulationDistance: default
-      nerfSpawnerMobs: false
-      entityActivationRange:
-        animals: 32
-        monsters: 32
-        raiders: 64
-        misc: 16
-        water: 16
-        villagers: 32
+    restartOnCrash: true
+    movedTooQuicklyMultiplier: 10.0
+    movedWronglyThreshold: 0.0625
+    timeoutTime: 60
+    nettyThreads: 4
+  # Custom overrides applied on top of auto-generated configs
+  overrides:
+    serverProperties: |
+      # Custom server.properties overrides
+      # These will be appended to server.properties after Purpur generates it
+    spigotYml: |
+      # Custom spigot.yml overrides (YAML format)
+      # Example:
+      # world-settings:
+      #   default:
+      #     mob-spawn-range: 6
+      #     view-distance: 8
 
 persistence:
   enabled: true

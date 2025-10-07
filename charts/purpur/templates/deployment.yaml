@@ -104,7 +104,27 @@ spec:
               mountPath: /data
             - name: plugins
               mountPath: /data/plugins
+            - name: config-source
+              mountPath: /config-source
+              readOnly: true
           lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    # Wait for Purpur to generate configs
+                    sleep 10
+                    # Apply custom overrides if they exist
+                    if [ -f /config-source/server-overrides.properties ]; then
+                      cat /config-source/server-overrides.properties >> /data/server.properties
+                      echo "Applied server.properties overrides"
+                    fi
+                    if [ -f /config-source/spigot-overrides.yml ]; then
+                      cat /config-source/spigot-overrides.yml >> /data/spigot.yml
+                      echo "Applied spigot.yml overrides"
+                    fi
             preStop:
               exec:
                 command:
