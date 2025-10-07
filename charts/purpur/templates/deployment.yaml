@@ -45,7 +45,7 @@ spec:
             - name: VERSION
               value: "{{ .Values.version }}"
             - name: ONLINE_MODE
-              value: "false"
+              value: "{{ if .Values.server.onlineMode }}TRUE{{ else }}FALSE{{ end }}"
             - name: VELOCITY_SECRET
               value: "{{ .Values.server.velocity.secret }}"
           ports:
