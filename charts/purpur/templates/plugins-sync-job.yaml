@@ -74,17 +74,17 @@ spec:
                   VERSION=$(yq -r ".plugins[$i].version" "$PLUGINS_CONFIG")
                   ARTIFACT=$(yq -r ".plugins[$i].artifact" "$PLUGINS_CONFIG")
                   
+                  # Get release by tag (works for both 'latest' and specific tags)
                   if [ "$VERSION" = "latest" ]; then
-                    # Get latest release
                     RELEASE_URL="https://api.github.com/repos/$REPO/releases/latest"
-                    if [ -n "$GITHUB_TOKEN" ]; then
-                      DOWNLOAD_URL=$(curl -fsSL -H "Authorization: token $GITHUB_TOKEN" "$RELEASE_URL" | jq -r ".assets[] | select(.name | contains(\"$ARTIFACT\")) | .browser_download_url" | head -n 1)
-                    else
-                      DOWNLOAD_URL=$(curl -fsSL "$RELEASE_URL" | jq -r ".assets[] | select(.name | contains(\"$ARTIFACT\")) | .browser_download_url" | head -n 1)
-                    fi
                   else
-                    # Specific version/tag
-                    DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$ARTIFACT"
+                    RELEASE_URL="https://api.github.com/repos/$REPO/releases/tags/$VERSION"
+                  fi
+                  
+                  if [ -n "$GITHUB_TOKEN" ]; then
+                    DOWNLOAD_URL=$(curl -fsSL -H "Authorization: token $GITHUB_TOKEN" "$RELEASE_URL" | jq -r ".assets[] | select(.name | contains(\"$ARTIFACT\")) | .browser_download_url" | head -n 1)
+                  else
+                    DOWNLOAD_URL=$(curl -fsSL "$RELEASE_URL" | jq -r ".assets[] | select(.name | contains(\"$ARTIFACT\")) | .browser_download_url" | head -n 1)
                   fi
                   
                   if [ -n "$DOWNLOAD_URL" ]; then
