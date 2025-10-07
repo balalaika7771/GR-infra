@@ -31,7 +31,7 @@ velocity:
   allowedNamespaceLabel: "app.kubernetes.io/name=velocity"
 
 server:
-  onlineMode: true
+  onlineMode: false
   velocity:
     enabled: true
     secret: "minecraft-secret-key"
