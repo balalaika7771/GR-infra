@@ -1,0 +1,16 @@
+{{- if .Values.plugins.configs }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "purpur.fullname" . }}-plugins-configs
+  labels:
+    {{- include "purpur.labels" . | nindent 4 }}
+data:
+{{- range $pluginName, $files := .Values.plugins.configs }}
+{{- range $fileName, $content := $files }}
+  {{ $pluginName }}-{{ $fileName }}: |
+{{ $content | indent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}
+
