@@ -42,12 +42,13 @@ spec:
               
               echo "=== Syncing plugins from $PLUGINS_CONFIG ==="
               
-                download_file() {
+              download_file() {
                 URL="$1"; OUT="$2"
                 echo "→ Downloading: $URL"
                 rm -f "$OUT" 2>/dev/null || true
-                if [ -n "$GITHUB_TOKEN" ] && echo "$URL" | grep -q "github.com"; then
-                  curl -fsSL -H "Authorization: token $GITHUB_TOKEN" -o "$OUT" "$URL" || { echo "✗ Failed: $URL"; return 1; }
+                # For GitHub URLs, always use token if available (works for private repos)
+                if [ -n "$GITHUB_TOKEN" ]; then
+                  curl -fsSL -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/octet-stream" -o "$OUT" "$URL" || { echo "✗ Failed: $URL"; return 1; }
                 else
                   curl -fsSL -o "$OUT" "$URL" || { echo "✗ Failed: $URL"; return 1; }
                 fi
