@@ -26,10 +26,6 @@ resources:
 health:
   port: 8080
 
-velocity:
-  forwardingSecret: "minecraft-secret-key"
-  allowedNamespaceLabel: "app.kubernetes.io/name=velocity"
-
 server:
   onlineMode: false
   velocity:
@@ -42,9 +38,6 @@ persistence:
   size: 10Gi
   storageClass: ""
   shared: true
-  hostPath:
-    path: "/var/lib/minecraft/purpur-lobby-world"
-    nodeName: ""
 
 plugins:
   persistence:
@@ -71,17 +64,6 @@ plugins:
       type: url
       url: https://github.com/dmulloy2/ProtocolLib/releases/download/5.4.0/ProtocolLib.jar
 
-plugin:
-  enabled: false
-  name: "purpur-plugin-1.0.0.jar"
-  config:
-    economy:
-      url: "http://economy-api:8080"
-      timeout: 5000
-    redis:
-      host: "redis"
-      port: 6379
-      timeout: 5000
 
 tolerations:
   - key: "node-role.kubernetes.io/control-plane"
