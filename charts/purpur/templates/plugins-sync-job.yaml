@@ -93,11 +93,15 @@ spec:
                     API_RESPONSE=$(curl -fsSL "$RELEASE_URL")
                   fi
                   
-                  DOWNLOAD_URL=$(echo "$API_RESPONSE" | jq -r ".assets[] | select(.name | contains(\"$ARTIFACT\")) | .browser_download_url" | head -n 1)
+                  # For private repos, use API download URL instead of browser_download_url
+                  ASSET_ID=$(echo "$API_RESPONSE" | jq -r ".assets[] | select(.name | contains(\"$ARTIFACT\")) | .id" | head -n 1)
                   
-                  if [ -n "$DOWNLOAD_URL" ] && [ "$DOWNLOAD_URL" != "null" ]; then
-                    echo "  Asset URL: $DOWNLOAD_URL"
-                    download_file "$DOWNLOAD_URL" "/plugins/${NAME}.jar" || echo "Failed to download $NAME"
+                  if [ -n "$ASSET_ID" ] && [ "$ASSET_ID" != "null" ]; then
+                    # Use GitHub API to download asset (works for private repos)
+                    API_DOWNLOAD_URL="https://api.github.com/repos/$REPO/releases/assets/$ASSET_ID"
+                    echo "  Asset ID: $ASSET_ID"
+                    echo "  API Download URL: $API_DOWNLOAD_URL"
+                    download_file "$API_DOWNLOAD_URL" "/plugins/${NAME}.jar" || echo "Failed to download $NAME"
                   else
                     echo "✗ Could not find download URL for $NAME (artifact: $ARTIFACT)"
                     echo "  API Response: $(echo \"$API_RESPONSE\" | jq -c '.assets[].name' 2>/dev/null || echo 'Failed to parse')"
