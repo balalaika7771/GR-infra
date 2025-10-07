@@ -29,6 +29,21 @@ spec:
       securityContext:
         runAsNonRoot: false
         fsGroup: 10001
+      initContainers:
+        - name: copy-config
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              mkdir -p /data/config
+              cp /config-source/paper-global.yml /data/config/paper-global.yml
+              cp /config-source/spigot.yml /data/spigot.yml
+              echo "Copied config files"
+          volumeMounts:
+            - name: world
+              mountPath: /data
+            - name: config-source
+              mountPath: /config-source
       containers:
         - name: purpur
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -54,8 +69,6 @@ spec:
               mountPath: /data
             - name: plugins
               mountPath: /data/plugins
-            - name: config
-              mountPath: /config
           lifecycle:
             preStop:
               exec:
@@ -103,7 +116,7 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-        - name: config
+        - name: config-source
           configMap:
             name: {{ include "purpur.fullname" . }}-config
 
