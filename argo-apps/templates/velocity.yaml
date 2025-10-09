@@ -13,7 +13,7 @@ spec:
     helm:
       releaseName: velocity
   destination:
-    server: {{ .Values.destination.server }}
+    server: {{ .Values.destination.server | default "https://kubernetes.default.svc" }}
     namespace: {{ .Values.destination.namespace }}
   syncPolicy:
     automated:

@@ -1,6 +1,7 @@
 # Default destination - локальный кластер (где установлен ArgoCD)
+# Пустой server означает "in-cluster" (https://kubernetes.default.svc)
 destination:
-  server: https://kubernetes.default.svc
+  server: ""
   namespace: minecraft
 
 # Источник манифестов

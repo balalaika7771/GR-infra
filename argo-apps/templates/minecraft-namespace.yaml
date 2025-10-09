@@ -11,7 +11,7 @@ spec:
     targetRevision: {{ .Values.targetRevision }}
     path: kustomization
   destination:
-    server: {{ .Values.destination.server }}
+    server: {{ .Values.destination.server | default "https://kubernetes.default.svc" }}
     namespace: default
   syncPolicy:
     automated:

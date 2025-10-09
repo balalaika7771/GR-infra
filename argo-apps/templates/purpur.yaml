@@ -17,7 +17,7 @@ spec:
           enabled: {{ .Values.purpur.persistence.enabled }}
           storageClass: {{ .Values.purpur.persistence.storageClass }}
   destination:
-    server: {{ .Values.destination.server }}
+    server: {{ .Values.destination.server | default "https://kubernetes.default.svc" }}
     namespace: {{ .Values.destination.namespace }}
   syncPolicy:
     automated:
