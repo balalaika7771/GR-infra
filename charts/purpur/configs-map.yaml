@@ -8,7 +8,6 @@ configs:
   config/spigot.yml: spigot.yml
   config/paper-global.yml: paper-global.yml
   # Plugin configs
-  plugins/core_plugin/api_config.yaml: api_config.yaml
   # Add more as needed:
   # plugins/SomePlugin/config.yml: some-plugin-config.yml
 

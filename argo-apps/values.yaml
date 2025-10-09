@@ -6,7 +6,7 @@ destination:
 
 # Источник манифестов
 repoURL: https://github.com/balalaika7771/GR-infra.git
-targetRevision: main
+targetRevision: minigame
 
 # Настройки приложений
 purpur:
