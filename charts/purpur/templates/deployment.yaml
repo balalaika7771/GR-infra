@@ -21,7 +21,6 @@ spec:
       annotations:
         checksum/configs: {{ include (print $.Template.BasePath "/configs-cm.yaml") . | sha256sum }}
         checksum/plugins: {{ include (print $.Template.BasePath "/plugins-config.yaml") . | sha256sum }}
-        plugins-sync-trigger: {{ now | date "20060102-150405" }}
     spec:
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
@@ -33,6 +32,119 @@ spec:
         runAsNonRoot: false
         fsGroup: 10001
       initContainers:
+        - name: sync-plugins
+          image: alpine:3.19
+          env:
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-access-token
+                  key: token
+                  optional: true
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              apk add --no-cache curl wget yq jq >/dev/null 2>&1
+              
+              mkdir -p /data/plugins
+              PLUGINS_CONFIG="/config/plugins.yaml"
+              
+              if [ ! -f "$PLUGINS_CONFIG" ]; then
+                echo "plugins.yaml not found, skipping"
+                exit 0
+              fi
+              
+              echo "=== Syncing plugins from $PLUGINS_CONFIG ==="
+              
+              download_file() {
+                URL="$1"; OUT="$2"
+                echo "→ Downloading: $URL"
+                rm -f "$OUT" 2>/dev/null || true
+                if [ -n "$GITHUB_TOKEN" ]; then
+                  curl -fsSL -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/octet-stream" -o "$OUT" "$URL" || { echo "✗ Failed: $URL"; return 1; }
+                else
+                  curl -fsSL -o "$OUT" "$URL" || { echo "✗ Failed: $URL"; return 1; }
+                fi
+                if [ -f "$OUT" ] && [ -s "$OUT" ]; then
+                  echo "✓ Saved: $OUT"
+                else
+                  echo "✗ Empty file: $OUT"
+                  return 1
+                fi
+              }
+              
+              COUNT=$(yq '.plugins | length' "$PLUGINS_CONFIG")
+              echo "Found $COUNT plugins in config"
+              
+              EXPECTED_PLUGINS=""
+              i=0
+              while [ "$i" -lt "$COUNT" ]; do
+                NAME=$(yq -r ".plugins[$i].name" "$PLUGINS_CONFIG")
+                EXPECTED_PLUGINS="$EXPECTED_PLUGINS${NAME}.jar "
+                i=$((i+1))
+              done
+              
+              echo "=== Cleaning up old plugins ==="
+              for jar in /data/plugins/*.jar; do
+                if [ -f "$jar" ]; then
+                  BASENAME=$(basename "$jar")
+                  if ! echo "$EXPECTED_PLUGINS" | grep -q "$BASENAME"; then
+                    echo "✗ Removing: $BASENAME (not in plugins.yaml)"
+                    rm -f "$jar"
+                  fi
+                fi
+              done
+              
+              echo "=== Downloading plugins ==="
+              i=0
+              while [ "$i" -lt "$COUNT" ]; do
+                NAME=$(yq -r ".plugins[$i].name" "$PLUGINS_CONFIG")
+                TYPE=$(yq -r ".plugins[$i].type" "$PLUGINS_CONFIG")
+                
+                echo "[$i] Processing: $NAME (type: $TYPE)"
+                
+                if [ "$TYPE" = "github" ]; then
+                  REPO=$(yq -r ".plugins[$i].repository" "$PLUGINS_CONFIG")
+                  VERSION=$(yq -r ".plugins[$i].version" "$PLUGINS_CONFIG")
+                  ARTIFACT=$(yq -r ".plugins[$i].artifact" "$PLUGINS_CONFIG")
+                  
+                  if [ "$VERSION" = "latest" ]; then
+                    RELEASE_URL="https://api.github.com/repos/$REPO/releases/latest"
+                  else
+                    RELEASE_URL="https://api.github.com/repos/$REPO/releases/tags/$VERSION"
+                  fi
+                  
+                  if [ -n "$GITHUB_TOKEN" ]; then
+                    API_RESPONSE=$(curl -fsSL -H "Authorization: token $GITHUB_TOKEN" "$RELEASE_URL")
+                  else
+                    API_RESPONSE=$(curl -fsSL "$RELEASE_URL")
+                  fi
+                  
+                  ASSET_ID=$(echo "$API_RESPONSE" | jq -r ".assets[] | select(.name | contains(\"$ARTIFACT\")) | .id" | head -n 1)
+                  
+                  if [ -n "$ASSET_ID" ] && [ "$ASSET_ID" != "null" ]; then
+                    API_DOWNLOAD_URL="https://api.github.com/repos/$REPO/releases/assets/$ASSET_ID"
+                    download_file "$API_DOWNLOAD_URL" "/data/plugins/${NAME}.jar" || echo "Failed to download $NAME"
+                  else
+                    echo "✗ Asset not found: $ARTIFACT in $REPO@$VERSION"
+                  fi
+                  
+                elif [ "$TYPE" = "url" ]; then
+                  URL=$(yq -r ".plugins[$i].url" "$PLUGINS_CONFIG")
+                  download_file "$URL" "/data/plugins/${NAME}.jar" || echo "Failed to download $NAME"
+                fi
+                
+                i=$((i+1))
+              done
+              
+              echo "=== Plugin sync completed ==="
+              ls -lh /data/plugins/
+          volumeMounts:
+            - name: world
+              mountPath: /data
+            - name: plugins-config
+              mountPath: /config
         - name: copy-configs
           image: alpine:3.19
           command: ["/bin/sh", "-c"]
@@ -47,7 +159,6 @@ spec:
                 exit 0
               fi
               
-              # Read each mapping and copy files
               yq -r '.configs | to_entries | .[] | .key + " " + .value' "$MAP" | while read TARGET SOURCE; do
                 if [ -f "/configs/$SOURCE" ]; then
                   mkdir -p "/data/$(dirname $TARGET)"
