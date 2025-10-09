@@ -1,3 +1,4 @@
+{{- if .Values.velocity.enabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,18 +7,19 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/balalaika7771/GR-infra.git
-    targetRevision: main
+    repoURL: {{ .Values.repoURL }}
+    targetRevision: {{ .Values.targetRevision }}
     path: charts/velocity
     helm:
       releaseName: velocity
   destination:
-    server: https://kubernetes.default.svc
-    namespace: minecraft
+    server: {{ .Values.destination.server }}
+    namespace: {{ .Values.destination.namespace }}
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+{{- end }}
 

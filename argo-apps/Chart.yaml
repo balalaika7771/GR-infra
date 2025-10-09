@@ -1,0 +1,7 @@
+apiVersion: v2
+name: minecraft-apps
+description: Minecraft servers ArgoCD applications
+type: application
+version: 1.0.0
+appVersion: "1.0"
+

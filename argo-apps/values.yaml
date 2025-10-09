@@ -1,0 +1,30 @@
+# Default destination - локальный кластер (где установлен ArgoCD)
+destination:
+  server: https://kubernetes.default.svc
+  namespace: minecraft
+
+# Источник манифестов
+repoURL: https://github.com/balalaika7771/GR-infra.git
+targetRevision: main
+
+# Настройки приложений
+purpur:
+  enabled: true
+  persistence:
+    enabled: true
+    storageClass: local-path
+
+velocity:
+  enabled: true
+
+ingressNginx:
+  enabled: true
+
+minecraftNamespace:
+  enabled: true
+
+# Для развёртывания на удалённый кластер переопределить:
+# destination:
+#   server: https://192.168.1.18:6443
+#   namespace: minecraft
+

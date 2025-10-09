@@ -9,6 +9,13 @@ spec:
     repoURL: https://github.com/balalaika7771/GR-infra.git
     targetRevision: main
     path: argo-apps
+    helm:
+      releaseName: minecraft-apps
+      # Для развёртывания на удалённый кластер раскомментировать:
+      # values: |
+      #   destination:
+      #     server: https://192.168.1.18:6443
+      #     namespace: minecraft
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

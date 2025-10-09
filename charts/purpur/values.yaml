@@ -62,5 +62,5 @@ tolerations:
     operator: "Exists"
     effect: "NoSchedule"
 
-nodeSelector: { }
+nodeSelector: { } 
 
